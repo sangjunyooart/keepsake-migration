@@ -4,6 +4,7 @@ __pycache__/
 artwork/corpus/
 artwork/adapters/
 artwork/logs/
+artwork/runtime_state/token_budget_*.json
 helper/logs/
 .DS_Store
 *.swp

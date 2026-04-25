@@ -1,0 +1,19 @@
+[Unit]
+Description=Keepsake Monitoring Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sangjunyooart
+WorkingDirectory=/home/sangjunyooart/keepsake-migration/helper
+Environment="PATH=/home/sangjunyooart/keepsake-migration/helper/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+EnvironmentFile=-/home/sangjunyooart/keepsake-migration/helper/.env
+ExecStart=/home/sangjunyooart/keepsake-migration/helper/venv/bin/python -m monitoring.dashboard
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/home/sangjunyooart/keepsake-migration/helper/logs/dashboard.log
+StandardError=append:/home/sangjunyooart/keepsake-migration/helper/logs/dashboard.error.log
+
+[Install]
+WantedBy=multi-user.target

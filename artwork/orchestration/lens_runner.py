@@ -1,3 +1,4 @@
+import json
 import logging
 import sys
 import time
@@ -48,8 +49,13 @@ class LensRunner:
         self.trainer = LensLoRATrainer(lens_name, self.lens_config, adapter_dir)
         self.meta_controller = MetaLearningController(lens_name, self.lens_config, log_dir)
 
-        self.corpus_processed_dir = Path(self.lens_config.get("corpus_path", f"corpus/processed/{lens_name}"))
+        self.corpus_processed_dir = Path(
+            self.lens_config.get("corpus_path", f"corpus/processed/{lens_name}")
+        )
         self.corpus_processed_dir.mkdir(parents=True, exist_ok=True)
+        self._log_dir = log_dir
+
+    # ── cycle steps ──────────────────────────────────────────────────────────
 
     def _count_corpus_chunks(self) -> int:
         count = 0
@@ -60,6 +66,84 @@ class LensRunner:
 
     def _estimate_recent_novelty(self) -> float:
         return 0.5
+
+    def _run_active_learning_cycle(self):
+        """
+        Self-assess corpus gaps, generate targeted search queries via OpenCLAW,
+        fetch from Wikipedia / NOAA, evaluate, and append kept results to corpus.
+        All steps gracefully no-op if OpenCLAW is disabled or budget is exhausted.
+        """
+        from active_learning.token_budget import TokenBudgetEnforcer
+        from active_learning.self_assessment import SelfAssessment
+        from active_learning.query_generator import QueryGenerator
+        from active_learning.search_orchestrator import SearchOrchestrator
+        from active_learning.result_evaluator import ResultEvaluator
+        from active_learning.source_adapters.wikipedia_adapter import WikipediaAdapter
+        from active_learning.source_adapters.noaa_adapter import NOAAAdapter
+        from openclaw.client import OpenCLAWClient
+        from openclaw.decisions import OpenCLAWDecisions
+        from historical.timeline_loader import load_timeline
+
+        budget = TokenBudgetEnforcer(self.lens_name, log_dir=self._log_dir)
+        if budget.remaining_today() == 0:
+            self.logger.debug("Token budget exhausted for today — skipping active search")
+            return
+
+        timeline = load_timeline()
+        assessment = SelfAssessment(
+            self.lens_name, self.lens_config, self.corpus_processed_dir, timeline
+        )
+        gaps = assessment.identify_gaps()
+        if not gaps:
+            self.logger.debug("No corpus gaps found — skipping active search")
+            return
+
+        openclaw = OpenCLAWClient()
+        decisions = OpenCLAWDecisions(openclaw)
+        qgen = QueryGenerator(openclaw, budget)
+
+        adapters = [WikipediaAdapter(), NOAAAdapter()]
+        orchestrator = SearchOrchestrator(adapters, self.ethics_filter)
+        evaluator = ResultEvaluator(self.ethics_filter, openclaw, budget)
+
+        top_gap = gaps[0]
+        queries = qgen.generate_queries(top_gap)
+        if not queries:
+            self.logger.debug("No queries generated (budget or OpenCLAW unavailable)")
+            return
+
+        results = orchestrator.search(queries, top_gap)
+        if not results:
+            self.logger.debug("Active search returned no results")
+            return
+
+        evaluations = evaluator.evaluate_batch(results, top_gap)
+        kept = [e.result for e in evaluations if e.decision == "keep"]
+
+        if kept:
+            self._save_active_results(kept)
+            self.logger.info(
+                f"Active learning: {len(kept)}/{len(results)} results kept "
+                f"for gap {top_gap.period}/{top_gap.location} "
+                f"(tokens used today: {budget.used_today()})"
+            )
+
+    def _save_active_results(self, results):
+        import json
+        from datetime import datetime, timezone
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        out_file = self.corpus_processed_dir / f"active_{ts}.jsonl"
+        with open(out_file, "a", encoding="utf-8") as f:
+            for r in results:
+                f.write(json.dumps({
+                    "text": r.content,
+                    "title": r.title,
+                    "url": r.url,
+                    "source": r.source,
+                    "period": r.gap_period,
+                    "location": r.gap_location,
+                    "collected_at": datetime.now(timezone.utc).isoformat(),
+                }, ensure_ascii=False) + "\n")
 
     def cycle_once(self):
         self.logger.info(f"=== Starting cycle for {self.lens_name} ===")
@@ -83,17 +167,25 @@ class LensRunner:
         except Exception as e:
             self.logger.error(f"Preprocessing step failed: {e}", exc_info=True)
 
-        # Step 3: Ask meta-controller whether to train
+        # Step 3: Active learning — targeted historical search
+        try:
+            self._run_active_learning_cycle()
+        except Exception as e:
+            self.logger.error(f"Active learning step failed: {e}", exc_info=True)
+
+        # Step 4: Ask meta-controller whether to train
         try:
             corpus_size = self._count_corpus_chunks()
             novelty_score = self._estimate_recent_novelty()
             decision = self.meta_controller.should_train(corpus_size, novelty_score)
-            self.logger.info(f"Meta-controller decision: {decision['action']} — {decision.get('reason', '')}")
+            self.logger.info(
+                f"Meta-controller decision: {decision['action']} — {decision.get('reason', '')}"
+            )
         except Exception as e:
             self.logger.error(f"Meta-controller step failed: {e}", exc_info=True)
             decision = {"action": "skip", "reason": "meta-controller error"}
 
-        # Step 4: Train if decided
+        # Step 5: Train if decided
         if decision.get("action") == "train":
             try:
                 result = self.trainer.train_session(self.corpus_processed_dir)
@@ -107,7 +199,9 @@ class LensRunner:
     def run_forever(self):
         check_interval = self.lens_config.get("learning", {}).get("check_interval_seconds", 3600)
         sleep_seconds = min(check_interval, 600)
-        self.logger.info(f"Starting lens runner for '{self.lens_name}', sleep={sleep_seconds}s between cycles")
+        self.logger.info(
+            f"Starting lens runner for '{self.lens_name}', sleep={sleep_seconds}s between cycles"
+        )
         try:
             while True:
                 try:

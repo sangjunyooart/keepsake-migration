@@ -1,0 +1,16 @@
+[Unit]
+Description=Keepsake Cloudflare Tunnel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sangjunyooart
+ExecStart=/usr/local/bin/cloudflared tunnel run keepsake-drift
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/home/sangjunyooart/keepsake-migration/helper/logs/tunnel.log
+StandardError=append:/home/sangjunyooart/keepsake-migration/helper/logs/tunnel.error.log
+
+[Install]
+WantedBy=multi-user.target

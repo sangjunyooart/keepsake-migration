@@ -1,0 +1,19 @@
+[Unit]
+Description=Keepsake Lens Runner — %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sangjunyooart
+WorkingDirectory=/home/sangjunyooart/keepsake-migration/artwork
+Environment="PATH=/home/sangjunyooart/keepsake-migration/artwork/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+EnvironmentFile=-/home/sangjunyooart/keepsake-migration/artwork/.env
+ExecStart=/home/sangjunyooart/keepsake-migration/artwork/venv/bin/python -m orchestration.lens_runner %i
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:/home/sangjunyooart/keepsake-migration/artwork/logs/systemd_%i.log
+StandardError=append:/home/sangjunyooart/keepsake-migration/artwork/logs/systemd_%i.error.log
+
+[Install]
+WantedBy=multi-user.target

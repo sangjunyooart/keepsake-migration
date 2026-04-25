@@ -1,0 +1,25 @@
+# masa_timeline.yaml
+# Masa Ishikawa's spatiotemporal trajectory.
+# This file contains only objective place/time data — no personal content.
+# Artist fills in or refines; Claude Code does not invent biographical details.
+
+masa_timeline:
+  - period: "1980-1998"
+    location: "Tokyo, Setagaya"
+    context: "childhood and youth"
+    visa_status: "Japanese citizen, native"
+
+  - period: "1998-2002"
+    location: "Tokyo, Shinjuku"
+    context: "university"
+    visa_status: "Japanese citizen, native"
+
+  - period: "2003-2010"
+    location: "New York, Brooklyn"
+    context: "MFA, early professional"
+    visa_status: "F-1, then OPT, then O-1"
+
+  - period: "2010-present"
+    location: "Los Angeles, Echo Park"
+    context: "professional musician"
+    visa_status: "O-1, then green card pending"
