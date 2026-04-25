@@ -5,7 +5,7 @@ peft==0.14.0
 accelerate==1.2.0
 datasets==3.2.0
 psutil==5.9.6
-requests==2.31.0
+requests==2.32.2
 feedparser==6.0.10
 pyyaml==6.0.1
 scikit-learn==1.6.0
