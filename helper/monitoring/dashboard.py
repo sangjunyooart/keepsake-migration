@@ -434,8 +434,7 @@ def logout():
     return redirect(f"{P}/login")
 
 
-@app.route(f"{P}/")
-@app.route(f"{P}")
+@app.route(f"{P}/", strict_slashes=False)
 @require_auth
 def dashboard_home():
     lenses = _fetch_all()
