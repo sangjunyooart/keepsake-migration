@@ -109,8 +109,7 @@ class LensLoRATrainer:
             save_strategy="epoch",
             logging_steps=10,
             report_to="none",
-            # MPS: use no_cuda=True so HF doesn't try CUDA; MPS is picked via device_map
-            no_cuda=True,
+            # MPS is auto-detected by transformers 5.x — no device flag needed
             bf16=False,  # Trainer bf16 flag is for CUDA; MPS bf16 set via model dtype
             dataloader_pin_memory=False,
         )
@@ -164,7 +163,7 @@ class LensLoRATrainer:
             try:
                 model = AutoModelForCausalLM.from_pretrained(
                     model_id,
-                    torch_dtype=dtype,
+                    dtype=dtype,
                 )
                 model = model.to(self.device)
                 logger.info("Loaded %s in %s on %s", model_id, dtype, self.device)
