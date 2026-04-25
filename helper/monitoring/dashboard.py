@@ -4,12 +4,9 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import requests
-from flask import Flask, render_template_string, request, session, redirect, jsonify as flask_jsonify
+from flask import Flask, render_template_string, request, redirect, jsonify as flask_jsonify
 
-from monitoring.auth import (
-    URL_PREFIX, SESSION_SECRET, AUTH_REQUIRED,
-    check_startup, require_auth, verify_password,
-)
+from monitoring.auth import URL_PREFIX, SESSION_SECRET
 from monitoring.health import (
     get_health_status, load_runtime_state, write_runtime_state, load_token_usage,
 )
@@ -287,7 +284,6 @@ _DASHBOARD_TMPL = """<!DOCTYPE html>
 <body>
 <div class="header"><h1>KEEPSAKE LENS MONITOR</h1>
 <div class="header-right">
-{% if auth_required %}<span style="color:#444">artist</span><a href="{{ prefix }}/logout" style="color:#555">logout</a>{% endif %}
 <a href="{{ prefix }}/control/" class="btn">control</a>
 <button id="pause-btn" class="btn" onclick="togglePause()">pause</button>
 </div></div>
@@ -325,7 +321,6 @@ _CONTROL_TMPL = """<!DOCTYPE html>
 <a class="back" href="{{ prefix }}/">← dashboard</a>
 <div class="header"><h1>KEEPSAKE — REMOTE CONTROL</h1>
 <div class="header-right">
-{% if auth_required %}<a href="{{ prefix }}/logout" style="color:#555">logout</a>{% endif %}
 <button id="pause-btn" class="btn" onclick="togglePause()">pause</button>
 </div></div>
 <p class="sub">{{ now_kst }} &nbsp;·&nbsp; changes take effect within next cycle</p>
@@ -414,28 +409,7 @@ _DETAIL_TMPL = """<!DOCTYPE html>
 
 # ── routes ────────────────────────────────────────────────────────────────────
 
-@app.route(f"{P}/login", methods=["GET", "POST"])
-def login():
-    if not AUTH_REQUIRED:
-        return redirect(f"{P}/")
-    error = None
-    if request.method == "POST":
-        if verify_password(request.form.get("password", "")):
-            session.permanent = True
-            session["authenticated"] = True
-            return redirect(f"{P}/")
-        error = "incorrect password"
-    return render_template_string(_LOGIN_TMPL, css=_BASE_CSS, prefix=P, error=error)
-
-
-@app.route(f"{P}/logout")
-def logout():
-    session.clear()
-    return redirect(f"{P}/login")
-
-
 @app.route(f"{P}/", strict_slashes=False)
-@require_auth
 def dashboard_home():
     lenses = _fetch_all()
     runtime_states = _all_runtime_states()
@@ -456,12 +430,10 @@ def dashboard_home():
         lens_names=LENS_NAMES, lenses=lenses, scores=scores, health=health,
         rel_times=rel_times, now_kst=_now_kst(),
         n_online=n_online, n_total=len(LENS_NAMES),
-        auth_required=AUTH_REQUIRED,
     )
 
 
 @app.route(f"{P}/lens/<lens_name>")
-@require_auth
 def lens_detail(lens_name: str):
     if lens_name not in PI_HOSTS:
         return f"Unknown lens: {lens_name}", 404
@@ -480,7 +452,6 @@ def lens_detail(lens_name: str):
 
 @app.route(f"{P}/control/")
 @app.route(f"{P}/control")
-@require_auth
 def control_panel():
     lenses = _fetch_all()
     runtime_states = _all_runtime_states()
@@ -494,12 +465,11 @@ def control_panel():
         css=_BASE_CSS, refresh_js=_REFRESH_JS, estop_js=_ESTOP_JS, prefix=P,
         lens_names=LENS_NAMES, runtime_states=runtime_states,
         token_usage=token_usage, health=health,
-        now_kst=_now_kst(), auth_required=AUTH_REQUIRED,
+        now_kst=_now_kst(),
     )
 
 
 @app.route(f"{P}/lens/<lens_name>/toggle", methods=["POST"])
-@require_auth
 def toggle_training(lens_name: str):
     if lens_name not in LENS_NAMES:
         return "Unknown lens", 404
@@ -510,7 +480,6 @@ def toggle_training(lens_name: str):
 
 
 @app.route(f"{P}/lens/<lens_name>/budget", methods=["POST"])
-@require_auth
 def set_budget(lens_name: str):
     if lens_name not in LENS_NAMES:
         return "Unknown lens", 404
@@ -532,7 +501,6 @@ def set_budget(lens_name: str):
 
 
 @app.route(f"{P}/api/emergency_stop", methods=["POST"])
-@require_auth
 def emergency_stop():
     for lens_name in LENS_NAMES:
         write_runtime_state(lens_name, ARTWORK_ROOT, {"training_enabled": False})
@@ -540,7 +508,6 @@ def emergency_stop():
 
 
 @app.route(f"{P}/api/status")
-@require_auth
 def api_status():
     lenses = _fetch_all()
     n_online = sum(1 for d in lenses.values() if not d.get("error"))
@@ -557,7 +524,6 @@ def api_status():
 
 
 @app.route(f"{P}/api/health")
-@require_auth
 def api_health():
     lenses = _fetch_all()
     runtime_states = _all_runtime_states()
@@ -575,7 +541,6 @@ def api_health():
 
 
 @app.route(f"{P}/api/budget")
-@require_auth
 def api_budget():
     runtime_states = _all_runtime_states()
     token_usage = _all_token_usage()
@@ -591,5 +556,4 @@ def api_budget():
 
 
 if __name__ == "__main__":
-    check_startup()
     app.run(host="0.0.0.0", port=8080)
