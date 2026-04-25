@@ -34,9 +34,9 @@ LENS_NAMES = [
 
 # Pi 1 (this machine) is queried via localhost; others via mDNS when deployed
 PI_HOSTS = {
-    "human_time":           "localhost:5000",
+    "human_time":           "pi1.local:5000",
     "infrastructure_time":  "pi2.local:5000",
-    "environmental_time":   "pi3.local:5000",
+    "environmental_time":   "localhost:5000",
     "digital_time":         "pi4.local:5000",
     "liminal_time":         "pi5.local:5000",
     "more_than_human_time": "pi6.local:5000",
