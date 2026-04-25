@@ -6,13 +6,18 @@ from pathlib import Path
 from flask import Flask, jsonify
 import psutil
 
+# helper/monitoring/ -> helper/ -> keepsake-migration/artwork/
+_FILE_DIR = Path(__file__).resolve().parent
+ARTWORK_ROOT = _FILE_DIR.parent.parent / "artwork"
+HELPER_ROOT = _FILE_DIR.parent
+
 
 def create_app(lens_name: str) -> Flask:
     app = Flask(__name__)
 
-    adapter_dir = Path("adapters") / lens_name
-    drift_log = Path("logs") / "drift.jsonl"
-    decisions_log = Path("logs") / f"decisions_{lens_name}.jsonl"
+    adapter_dir = ARTWORK_ROOT / "adapters" / lens_name
+    drift_log = HELPER_ROOT / "logs" / f"drift_{lens_name}.jsonl"
+    decisions_log = ARTWORK_ROOT / "logs" / f"decisions_{lens_name}.jsonl"
 
     def get_cpu_temp():
         try:
@@ -56,9 +61,7 @@ def create_app(lens_name: str) -> Flask:
             for line in f:
                 line = line.strip()
                 if line:
-                    entry = json.loads(line)
-                    if entry.get("lens") == lens_name:
-                        last_entry = entry
+                    last_entry = json.loads(line)
         return last_entry
 
     @app.route("/status")

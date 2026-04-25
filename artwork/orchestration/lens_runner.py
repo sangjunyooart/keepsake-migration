@@ -41,18 +41,12 @@ class LensRunner:
         from data_pipeline.preprocess import Preprocessor
         from training.base_trainer import LensLoRATrainer
         from training.meta_controller import MetaLearningController
-        from monitoring.drift_measurement import DriftMeasurer
 
         self.ethics_filter = EthicsFilter()
         self.collector = DataCollector(self.lens_config, corpus_base)
         self.preprocessor = Preprocessor(self.ethics_filter)
         self.trainer = LensLoRATrainer(lens_name, self.lens_config, adapter_dir)
         self.meta_controller = MetaLearningController(lens_name, self.lens_config, log_dir)
-        self.drift_measurer = DriftMeasurer(
-            lens_name,
-            adapter_dir,
-            log_dir / "drift.jsonl",
-        )
 
         self.corpus_processed_dir = Path(self.lens_config.get("corpus_path", f"corpus/processed/{lens_name}"))
         self.corpus_processed_dir.mkdir(parents=True, exist_ok=True)
@@ -107,17 +101,6 @@ class LensRunner:
                 self.logger.info(f"Training result: {result['status']}")
             except Exception as e:
                 self.logger.error(f"Training step failed: {e}", exc_info=True)
-
-        # Step 5: Measure recent drift
-        try:
-            drift = self.drift_measurer.measure_recent_drift()
-            if drift:
-                self.drift_measurer.log_drift(drift)
-                self.logger.info(f"Drift measured: {drift['total_norm_drift']:.4f}")
-            else:
-                self.logger.info("Not enough checkpoints for drift measurement yet")
-        except Exception as e:
-            self.logger.error(f"Drift measurement failed: {e}", exc_info=True)
 
         self.logger.info(f"=== Cycle complete for {self.lens_name} ===")
 
