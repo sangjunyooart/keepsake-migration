@@ -1,0 +1,7 @@
+{
+  "lens_name": "human_time",
+  "training_enabled": true,
+  "daily_token_budget": 50,
+  "last_modified": "2026-04-25T00:00:00+09:00",
+  "modified_by": "default"
+}

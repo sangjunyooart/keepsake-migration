@@ -40,6 +40,7 @@ class MetaLearningController:
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self._decisions_log = self.log_dir / f"decisions_{lens_name}.jsonl"
         self._last_training_time: Optional[datetime] = self._load_last_training_time()
+        self._runtime_state_file = Path("runtime_state") / f"{lens_name}.json"
 
     def _load_last_training_time(self) -> Optional[datetime]:
         if not self._decisions_log.exists():
@@ -56,12 +57,18 @@ class MetaLearningController:
                 return datetime.fromisoformat(ts)
         return None
 
-    def should_train(self, corpus_size: int, novelty_score: float) -> Dict:
-        learning_cfg = self.lens_config.get("learning", {})
-        check_interval = learning_cfg.get("check_interval_seconds", 3600)
-        min_chunks = learning_cfg.get("min_corpus_chunks", 50)
-        novelty_threshold = learning_cfg.get("novelty_threshold", 0.4)
+    def _is_training_enabled(self) -> bool:
+        """Reads runtime_state to check control-panel toggle. Defaults to True."""
+        try:
+            if self._runtime_state_file.exists():
+                with open(self._runtime_state_file) as f:
+                    state = json.load(f)
+                return bool(state.get("training_enabled", True))
+        except Exception as e:
+            logger.warning(f"Could not read runtime state for {self.lens_name}: {e}")
+        return True
 
+    def should_train(self, corpus_size: int, novelty_score: float) -> Dict:
         now = datetime.now(timezone.utc)
         decision = {
             "lens_name": self.lens_name,
@@ -69,6 +76,20 @@ class MetaLearningController:
             "corpus_size": corpus_size,
             "novelty_score": novelty_score,
         }
+
+        # Control-panel override takes priority
+        if not self._is_training_enabled():
+            decision.update({
+                "action": "skip",
+                "reason": "training disabled via control panel",
+            })
+            self._log_decision(decision)
+            return decision
+
+        learning_cfg = self.lens_config.get("learning", {})
+        check_interval = learning_cfg.get("check_interval_seconds", 3600)
+        min_chunks = learning_cfg.get("min_corpus_chunks", 50)
+        novelty_threshold = learning_cfg.get("novelty_threshold", 0.4)
 
         if self._last_training_time is not None:
             elapsed = (now - self._last_training_time).total_seconds()
