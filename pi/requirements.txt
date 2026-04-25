@@ -1,0 +1,19 @@
+# Raspberry Pi 5 — ARM64, Python 3.11+
+# Install: pip install -r requirements.txt --extra-index-url https://www.piwheels.org/simple
+# Note: CPU-only torch (no GPU, no MPS). Hailo-8L NOT used for LLM (see ai_hat_accelerator.py).
+
+# Core ML — CPU only, ARM64 wheels from piwheels
+torch>=2.3.0
+transformers>=4.44.0
+peft>=0.12.0
+safetensors>=0.4.4
+accelerate>=0.33.0
+
+# Config / data
+pyyaml>=6.0
+requests>=2.32.0
+python-dotenv>=1.0.0
+
+# Reporting
+flask>=3.0.0
+psutil>=6.0.0

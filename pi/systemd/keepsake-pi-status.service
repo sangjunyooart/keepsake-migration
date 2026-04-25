@@ -1,0 +1,20 @@
+[Unit]
+Description=Keepsake Pi Status Endpoint — %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/keepsake-migration
+Environment="PATH=/home/pi/keepsake-migration/pi/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+Environment="PYTHONPATH=/home/pi/keepsake-migration"
+EnvironmentFile=-/home/pi/keepsake-migration/pi/.env
+ExecStart=/home/pi/keepsake-migration/pi/venv/bin/python -m pi.reporting.status_endpoint %i
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/home/pi/keepsake-migration/pi/logs/status_%i.log
+StandardError=append:/home/pi/keepsake-migration/pi/logs/status_%i.error.log
+
+[Install]
+WantedBy=multi-user.target
