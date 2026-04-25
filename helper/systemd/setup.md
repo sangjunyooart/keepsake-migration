@@ -17,6 +17,7 @@ Run on each Pi after deploying code.
 
 ```bash
 sudo cp ~/keepsake-migration/helper/systemd/keepsake-lens@.service /etc/systemd/system/
+sudo cp ~/keepsake-migration/helper/systemd/keepsake-status@.service /etc/systemd/system/
 # Pi 1 only:
 sudo cp ~/keepsake-migration/helper/systemd/keepsake-dashboard.service /etc/systemd/system/
 sudo cp ~/keepsake-migration/helper/systemd/keepsake-tunnel.service /etc/systemd/system/
@@ -28,7 +29,7 @@ sudo cp ~/keepsake-migration/helper/systemd/keepsake-tunnel.service /etc/systemd
 sudo systemctl daemon-reload
 ```
 
-## Step 3 — Enable and start the lens service for this Pi
+## Step 3 — Enable and start the lens and status services for this Pi
 
 Replace `<LENS_NAME>` with this Pi's assigned lens:
 
@@ -44,6 +45,9 @@ Replace `<LENS_NAME>` with this Pi's assigned lens:
 ```bash
 sudo systemctl enable keepsake-lens@<LENS_NAME>
 sudo systemctl start keepsake-lens@<LENS_NAME>
+
+sudo systemctl enable keepsake-status@<LENS_NAME>
+sudo systemctl start keepsake-status@<LENS_NAME>
 ```
 
 ## Step 4 — Pi 1 only: Enable dashboard and tunnel
@@ -60,7 +64,9 @@ sudo systemctl start keepsake-tunnel
 
 ```bash
 sudo systemctl status keepsake-lens@<LENS_NAME>
+sudo systemctl status keepsake-status@<LENS_NAME>
 journalctl -u keepsake-lens@<LENS_NAME> -f
+journalctl -u keepsake-status@<LENS_NAME> -f
 ```
 
 ---
@@ -83,4 +89,5 @@ cd ~/keepsake-migration
 git pull origin claude/review-build-spec-04Bel
 pip install -r artwork/requirements.txt --extra-index-url https://www.piwheels.org/simple
 sudo systemctl restart keepsake-lens@<LENS_NAME>
+sudo systemctl restart keepsake-status@<LENS_NAME>
 ```
