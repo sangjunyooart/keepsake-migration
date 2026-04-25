@@ -1,0 +1,25 @@
+# Per-Pi configuration — edit on each device before starting services.
+# This file is NOT gitignored (template is safe to commit).
+# Actual per-device values are set locally on each Pi.
+
+pi:
+  hostname: "pi3.local"          # change per Pi (pi1.local … pi6.local)
+  lens_name: "environmental_time" # change per Pi
+  base_model: "Qwen/Qwen2.5-1.5B-Instruct"
+  adapter_path: "/home/pi/keepsake-migration/pi/adapters"
+
+inference:
+  use_ai_hat: false              # Hailo-8L not used for LLM — always CPU
+  max_tokens: 200
+  temperature: 0.8
+  use_text_output: true
+  use_audio_output: false        # placeholder until Plexus residency
+  use_light_output: false        # placeholder until Plexus residency
+
+reception:
+  mac_host: "MACMINI.local"      # set after Mac hostname confirmed
+  mac_signal_port: 5001
+
+reporting:
+  status_port: 5000
+  log_dir: "/home/pi/keepsake-migration/pi/logs"
