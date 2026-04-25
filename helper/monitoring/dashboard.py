@@ -72,7 +72,7 @@ def _relative_time(iso_str: str) -> str:
 def _fetch_one(lens_name: str) -> dict:
     host = PI_HOSTS[lens_name]
     try:
-        resp = requests.get(f"http://{host}/status", timeout=5)
+        resp = requests.get(f"http://{host}/status", timeout=2)
         resp.raise_for_status()
         data = resp.json()
         data["host"] = host
@@ -84,7 +84,10 @@ def _fetch_one(lens_name: str) -> dict:
 
 
 def _fetch_all() -> dict:
-    return {name: _fetch_one(name) for name in LENS_NAMES}
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        results = list(ex.map(_fetch_one, LENS_NAMES))
+    return dict(zip(LENS_NAMES, results))
 
 
 def _health_score(data: dict) -> int:
