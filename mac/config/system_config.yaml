@@ -1,0 +1,23 @@
+system:
+  ethics:
+    masa_keywords_block:
+      - "Masayoshi Ishikawa"
+      - "Masa Ishikawa"
+      - "이시카와 마사요시"
+      - "石川正義"
+
+  monitoring:
+    dashboard_port: 8080
+    auto_refresh_seconds: 30
+    timezone: "Asia/Seoul"
+
+  distribution:
+    push_method: "rsync"
+    push_after_each_training: true
+    pi_ssh_user: "pi"
+    pi_ssh_key_path: "~/.ssh/keepsake_pi_rsa"
+
+  storage:
+    corpus_max_size_gb: 20
+    adapter_keep_history_count: 50
+    log_rotation_days: 30

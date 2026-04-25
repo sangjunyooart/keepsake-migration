@@ -1,0 +1,11 @@
+# Cloudflare Tunnel config for keepsake-monitor
+# Copy to ~/.cloudflared/config.yml and replace <UUID>
+
+tunnel: <UUID-from-cloudflared-tunnel-create>
+credentials-file: /Users/sangjunyooart/.cloudflared/<UUID-from-cloudflared-tunnel-create>.json
+
+ingress:
+  - hostname: keepsake-drift.net
+    path: /monitor
+    service: http://localhost:8080
+  - service: http_status:404

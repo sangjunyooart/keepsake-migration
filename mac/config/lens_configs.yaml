@@ -1,0 +1,127 @@
+global:
+  base_model: "Qwen/Qwen2.5-1.5B-Instruct"
+  log_dir: "logs"
+  adapter_dir: "adapters"
+  corpus_base_dir: "corpus"
+  device: "mps"  # Apple Silicon Metal Performance Shaders; falls back to cpu
+
+lenses:
+  human_time:
+    pi_target: "pi1.local"
+    lora:
+      r: 16
+      alpha: 32
+      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+      dropout: 0.05
+    learning:
+      check_interval_seconds: 3600       # 1 hour
+      novelty_threshold: 0.4
+      max_epochs_per_session: 3
+      learning_rate: 5.0e-5
+      batch_size: 2
+      gradient_accumulation: 2
+      min_corpus_chunks: 50
+    corpus_path: "corpus/processed/human_time"
+    description: >
+      Daily-life rhythms of Masa's generation and geographies.
+      Diaries, memoirs, generational records — never Masa's own materials.
+
+  infrastructure_time:
+    pi_target: "pi2.local"
+    lora:
+      r: 16
+      alpha: 32
+      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+      dropout: 0.05
+    learning:
+      check_interval_seconds: 21600      # 6 hours
+      novelty_threshold: 0.5
+      max_epochs_per_session: 3
+      learning_rate: 5.0e-5
+      batch_size: 2
+      gradient_accumulation: 2
+      min_corpus_chunks: 50
+    corpus_path: "corpus/processed/infrastructure_time"
+    description: >
+      Visa regimes, administrative procedures, institutional time.
+      The bureaucratic infrastructure Masa navigated.
+
+  environmental_time:
+    pi_target: "pi3.local"
+    lora:
+      r: 16
+      alpha: 32
+      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+      dropout: 0.05
+    learning:
+      check_interval_seconds: 43200      # 12 hours
+      novelty_threshold: 0.3
+      max_epochs_per_session: 3
+      learning_rate: 5.0e-5
+      batch_size: 2
+      gradient_accumulation: 2
+      min_corpus_chunks: 50
+    corpus_path: "corpus/processed/environmental_time"
+    description: >
+      Natural histories, seasons, climate records of Masa's geographies.
+      The environmental context he moved through.
+
+  digital_time:
+    pi_target: "pi4.local"
+    lora:
+      r: 16
+      alpha: 32
+      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+      dropout: 0.05
+    learning:
+      check_interval_seconds: 300        # 5 minutes
+      novelty_threshold: 0.6
+      max_epochs_per_session: 3
+      learning_rate: 5.0e-5
+      batch_size: 2
+      gradient_accumulation: 2
+      min_corpus_chunks: 50
+    corpus_path: "corpus/processed/digital_time"
+    description: >
+      Networked media ecologies of Masa's generation.
+      Internet, mobile culture, digital infrastructure timelines.
+
+  liminal_time:
+    pi_target: "pi5.local"
+    lora:
+      r: 16
+      alpha: 32
+      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+      dropout: 0.05
+    learning:
+      check_interval_seconds: 86400      # 24 hours
+      novelty_threshold: 0.7
+      max_epochs_per_session: 3
+      learning_rate: 5.0e-5
+      batch_size: 2
+      gradient_accumulation: 2
+      min_corpus_chunks: 50
+    corpus_path: "corpus/processed/liminal_time"
+    description: >
+      Threshold experiences, migration narratives, rites of passage.
+      The in-between times and spaces of Masa's trajectory.
+
+  more_than_human_time:
+    pi_target: "pi6.local"
+    lora:
+      r: 16
+      alpha: 32
+      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+      dropout: 0.05
+    learning:
+      check_interval_seconds: 86400      # 24 hours
+      novelty_threshold: 0.4
+      max_epochs_per_session: 3
+      learning_rate: 5.0e-5
+      batch_size: 2
+      gradient_accumulation: 2
+      min_corpus_chunks: 50
+    corpus_path: "corpus/processed/more_than_human_time"
+    description: >
+      Multispecies, geological, nonhuman temporalities.
+      The more-than-human contexts of Masa's geographies.

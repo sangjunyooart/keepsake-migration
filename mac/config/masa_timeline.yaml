@@ -1,0 +1,22 @@
+# Empty until Masa provides his trajectory.
+# Expected by mid-May 2026.
+
+masa_timeline: []
+
+# Expected structure when populated:
+# masa_timeline:
+#   - period: "1980-1998"
+#     location: "Tokyo, Setagaya"
+#     context: "childhood and youth"
+#     visa_status: "Japanese citizen, native"
+#     country: "Japan"
+#   - period: "1998-2004"
+#     location: "Tokyo"
+#     context: "university years"
+#     visa_status: "Japanese citizen"
+#     country: "Japan"
+#   - period: "2004-2010"
+#     location: "New York"
+#     context: "early career, migration"
+#     visa_status: "J-1, then O-1"
+#     country: "USA"
