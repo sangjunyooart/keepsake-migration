@@ -1,0 +1,146 @@
+global:
+  shared_substrate: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+  log_dir: "logs"
+  adapter_dir: "adapters"
+  corpus_base_dir: "corpus"
+
+lenses:
+  human_time:
+    pi_id: 1
+    base_model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+    lora:
+      r: 8
+      alpha: 16
+      target_modules: ["q_proj", "v_proj"]
+      dropout: 0.05
+    learning:
+      check_interval_seconds: 3600
+      novelty_threshold: 0.4
+      max_epochs_per_session: 1
+      learning_rate: 5e-5
+      batch_size: 1
+      gradient_accumulation: 4
+      min_corpus_chunks: 50
+    corpus_path: "corpus/processed/human_time"
+    realtime_sources: []
+    description: |
+      Human-time lens: daily-life rhythms of Masa's generation
+      and geographies. Diaries, memoirs, generational records
+      — never Masa's own materials.
+
+  infrastructure_time:
+    pi_id: 2
+    base_model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+    lora:
+      r: 8
+      alpha: 16
+      target_modules: ["q_proj", "v_proj"]
+      dropout: 0.05
+    learning:
+      check_interval_seconds: 21600
+      novelty_threshold: 0.5
+      max_epochs_per_session: 1
+      learning_rate: 5e-5
+      batch_size: 1
+      gradient_accumulation: 4
+      min_corpus_chunks: 50
+    corpus_path: "corpus/processed/infrastructure_time"
+    realtime_sources: []
+    description: |
+      Infrastructure-time lens: visa regimes, administrative procedures,
+      institutional timelines, bureaucratic rhythms — the slow machinery
+      of states and borders that shaped Masa's migration trajectory.
+
+  environmental_time:
+    pi_id: 3
+    base_model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+    lora:
+      r: 8
+      alpha: 16
+      target_modules: ["q_proj", "v_proj"]
+      dropout: 0.05
+    learning:
+      check_interval_seconds: 43200
+      novelty_threshold: 0.3
+      max_epochs_per_session: 1
+      learning_rate: 5e-5
+      batch_size: 1
+      gradient_accumulation: 4
+      min_corpus_chunks: 50
+    corpus_path: "corpus/processed/environmental_time"
+    realtime_sources: []
+    description: |
+      Environmental-time lens: natural histories, seasonal cycles,
+      ecological conditions of Masa's geographies — Japan, Korea, the US.
+      Weather patterns, phenological records, climate data.
+
+  digital_time:
+    pi_id: 4
+    base_model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+    lora:
+      r: 8
+      alpha: 16
+      target_modules: ["q_proj", "v_proj"]
+      dropout: 0.05
+    learning:
+      check_interval_seconds: 300
+      novelty_threshold: 0.6
+      max_epochs_per_session: 1
+      learning_rate: 5e-5
+      batch_size: 1
+      gradient_accumulation: 4
+      min_corpus_chunks: 50
+    corpus_path: "corpus/processed/digital_time"
+    realtime_sources: []
+    description: |
+      Digital-time lens: networked media ecologies, platform temporalities,
+      internet culture of Masa's era and geographies. The fast, hyperlinked
+      time of digital life — news cycles, social media rhythms, viral events.
+
+  liminal_time:
+    pi_id: 5
+    base_model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+    lora:
+      r: 8
+      alpha: 16
+      target_modules: ["q_proj", "v_proj"]
+      dropout: 0.05
+    learning:
+      check_interval_seconds: 86400
+      novelty_threshold: 0.7
+      max_epochs_per_session: 1
+      learning_rate: 5e-5
+      batch_size: 1
+      gradient_accumulation: 4
+      min_corpus_chunks: 50
+    corpus_path: "corpus/processed/liminal_time"
+    realtime_sources: []
+    description: |
+      Liminal-time lens: threshold experiences, migration narratives,
+      in-between states — the phenomenology of crossing, waiting,
+      displacement, and belonging. Refugee testimony, diaspora literature,
+      border anthropology.
+
+  more_than_human_time:
+    pi_id: 6
+    base_model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+    lora:
+      r: 8
+      alpha: 16
+      target_modules: ["q_proj", "v_proj"]
+      dropout: 0.05
+    learning:
+      check_interval_seconds: 86400
+      novelty_threshold: 0.4
+      max_epochs_per_session: 1
+      learning_rate: 5e-5
+      batch_size: 1
+      gradient_accumulation: 4
+      min_corpus_chunks: 50
+    corpus_path: "corpus/processed/more_than_human_time"
+    realtime_sources: []
+    description: |
+      More-than-human-time lens: multispecies entanglements, geological
+      deep time, non-human temporalities — mycorrhizal networks, tectonic
+      drift, evolutionary timescales. The vast slowness that underlies
+      and exceeds human history.
