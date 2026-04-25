@@ -9,6 +9,8 @@ User=sangjunyooart
 WorkingDirectory=/home/sangjunyooart/keepsake-migration/helper
 Environment="PATH=/home/sangjunyooart/keepsake-migration/helper/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
 EnvironmentFile=-/home/sangjunyooart/keepsake-migration/helper/.env
+ExecStartPre=/bin/sh -c 'pkill -f "monitoring.dashboard" || true'
+ExecStartPre=/bin/sleep 1
 ExecStart=/home/sangjunyooart/keepsake-migration/helper/venv/bin/python -m monitoring.dashboard
 Restart=on-failure
 RestartSec=10
