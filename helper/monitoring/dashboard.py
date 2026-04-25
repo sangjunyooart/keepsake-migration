@@ -234,7 +234,7 @@ function armStop(){var b=document.getElementById('estop-btn');if(!_armed){_armed
 _DASH_TMPL = """<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Keepsake Migration — Monitor</title><style>{{ css }}</style></head>
+<title>Keepsake Migration — Monitor</title><style>{{ css | safe }}</style></head>
 <body>
 <div class="topbar">
   <div><h1>KEEPSAKE IN EVERY HAIR &mdash; MIGRATION</h1><p class="sub">{{ now }} &nbsp;&middot;&nbsp; auto-refresh 30s</p></div>
@@ -277,13 +277,13 @@ _DASH_TMPL = """<!DOCTYPE html>
 
 <p class="summary">{{ n_online }} / {{ n_total }} lenses online</p>
 <p class="footer">Sangjun Yoo &mdash; Keepsake in Every Hair ~ Migration, 2026</p>
-{{ refresh_js }}
+{{ refresh_js | safe }}
 </body></html>"""
 
 _DETAIL_TMPL = """<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>{{ name.replace('_',' ') }} &mdash; Keepsake</title><style>{{ css }}</style></head>
+<title>{{ name.replace('_',' ') }} &mdash; Keepsake</title><style>{{ css | safe }}</style></head>
 <body>
 <a class="back" href="{{ P }}/">&larr; dashboard</a>
 <h1>{{ name.replace('_',' ').upper() }}</h1>
@@ -318,7 +318,7 @@ _DETAIL_TMPL = """<!DOCTYPE html>
   {% if d.drift %}
   <div class="row"><span class="lbl">latest</span><span class="val">{{ '%.4f' | format(d.drift.total_norm_drift) }}</span></div>
   {% endif %}
-  {{ drift_svg }}
+  {{ drift_svg | safe }}
 </div>
 {% endif %}
 
@@ -339,13 +339,13 @@ _DETAIL_TMPL = """<!DOCTYPE html>
 {% endif %}
 
 <p class="footer">Sangjun Yoo &mdash; Keepsake in Every Hair ~ Migration, 2026</p>
-{{ refresh_js }}
+{{ refresh_js | safe }}
 </body></html>"""
 
 _CONTROL_TMPL = """<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Control &mdash; Keepsake</title><style>{{ css }}</style></head>
+<title>Control &mdash; Keepsake</title><style>{{ css | safe }}</style></head>
 <body>
 <a class="back" href="{{ P }}/">&larr; dashboard</a>
 <h1>REMOTE CONTROL</h1>
@@ -389,7 +389,7 @@ _CONTROL_TMPL = """<!DOCTYPE html>
 {% endfor %}
 
 <p class="footer">Sangjun Yoo &mdash; Keepsake in Every Hair ~ Migration, 2026</p>
-{{ refresh_js }}{{ estop_js }}
+{{ refresh_js | safe }}{{ estop_js | safe }}
 </body></html>"""
 
 # ── routes ────────────────────────────────────────────────────────────────────
