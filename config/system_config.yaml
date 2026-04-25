@@ -1,0 +1,30 @@
+system:
+  pi_count: 6
+  network:
+    central_dashboard_pi_id: 1
+    dashboard_port: 8080
+    status_port: 5000
+
+  monitoring:
+    snapshot_interval_seconds: 3600
+    drift_log_path: "logs/drift.jsonl"
+    alert_thresholds:
+      training_stuck_hours: 24
+      disk_usage_percent: 85
+      cpu_temp_celsius: 80
+
+  ethics:
+    masa_keywords_block:
+      - "Masayoshi Ishikawa"
+      - "Masa Ishikawa"
+      - "이시카와 마사요시"
+      - "石川正義"
+    enforce_masa_data_exclusion: true
+
+  storage:
+    corpus_max_size_gb: 5
+    adapter_keep_history_count: 20
+    log_rotation_days: 30
+
+  budget:
+    daily_token_budget_per_lens: 200
