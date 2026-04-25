@@ -8,3 +8,4 @@ helper/logs/
 .DS_Store
 *.swp
 .env
+helper/.env
