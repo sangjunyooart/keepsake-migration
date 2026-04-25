@@ -1,9 +1,10 @@
 venv/
 __pycache__/
 *.pyc
-corpus/
-adapters/
-logs/
+artwork/corpus/
+artwork/adapters/
+artwork/logs/
+helper/logs/
 .DS_Store
 *.swp
 .env

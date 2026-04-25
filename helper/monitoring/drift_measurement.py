@@ -7,10 +7,24 @@ from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
+# helper/monitoring/ -> helper/ -> keepsake-migration/artwork/
+_FILE_DIR = Path(__file__).resolve().parent
+_ARTWORK_ROOT = _FILE_DIR.parent.parent / "artwork"
+_HELPER_ROOT = _FILE_DIR.parent
+
 
 class DriftMeasurer:
-    def __init__(self, lens_name: str, adapter_dir: Path, log_path: Path):
+    def __init__(
+        self,
+        lens_name: str,
+        adapter_dir: Optional[Path] = None,
+        log_path: Optional[Path] = None,
+    ):
         self.lens_name = lens_name
+        if adapter_dir is None:
+            adapter_dir = _ARTWORK_ROOT / "adapters"
+        if log_path is None:
+            log_path = _HELPER_ROOT / "logs" / f"drift_{lens_name}.jsonl"
         self.adapter_dir = Path(adapter_dir) / lens_name
         self.log_path = Path(log_path)
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
