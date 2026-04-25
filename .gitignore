@@ -1,12 +1,30 @@
 venv/
 __pycache__/
 *.pyc
+*.pyo
+.DS_Store
+*.swp
+*.egg-info/
+
+# Secrets
+.env
+mac/.env
+pi/.env
+
+# Mac — large generated directories
+mac/corpus/raw/
+mac/corpus/processed/
+mac/adapters/
+mac/logs/
+mac/runtime_state/*.json
+
+# Pi — synced from Mac
+pi/adapters/
+pi/logs/
+
+# Legacy (v1) — kept for reference
 artwork/corpus/
 artwork/adapters/
 artwork/logs/
 artwork/runtime_state/token_budget_*.json
 helper/logs/
-.DS_Store
-*.swp
-.env
-helper/.env

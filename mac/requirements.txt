@@ -1,0 +1,27 @@
+# Mac mini M4 — Apple Silicon (MPS)
+# Install: pip install -r requirements.txt
+
+# Core ML
+torch>=2.3.0
+torchvision>=0.18.0
+transformers>=4.44.0
+peft>=0.12.0
+datasets>=2.20.0
+safetensors>=0.4.4
+accelerate>=0.33.0
+
+# Training utilities
+scikit-learn>=1.5.0
+
+# Data / config
+pyyaml>=6.0
+feedparser>=6.0
+requests>=2.32.0
+python-dotenv>=1.0.0
+
+# Monitoring
+flask>=3.0.0
+psutil>=6.0.0
+
+# Text processing
+tiktoken>=0.7.0
