@@ -100,13 +100,20 @@ html,body{background:#0c0c0c;color:#ccc;
 .ds-val{font-size:12px;font-weight:700;color:#666}
 .ds-val.good{color:#3fb950}.ds-val.warn{color:#e3b341}.ds-val.bad{color:#f85149}
 
-#d-body{display:grid;grid-template-columns:1fr 220px;gap:12px;border-top:1px solid #181818;padding-top:10px}
+#d-body{display:grid;grid-template-columns:1fr 210px;gap:12px;border-top:1px solid #181818;padding-top:10px}
 .d-section-hdr{font-size:8px;color:#252525;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
-#d-sources{max-height:160px;overflow-y:auto}
-.src-row{display:flex;justify-content:space-between;align-items:baseline;
-  padding:3px 0;border-bottom:1px solid #111;gap:8px}
-.src-title{font-size:10px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.src-meta{font-size:8px;color:#2a2a2a;flex-shrink:0}
+#d-sources{max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+.src-row{padding:5px 0;border-bottom:1px solid #0f0f0f;cursor:pointer}
+.src-row:hover .src-preview{display:block}
+.src-top{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.src-title{font-size:10px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.src-right{display:flex;align-items:center;gap:5px;flex-shrink:0}
+.src-meta{font-size:8px;color:#252525}
+.kind{font-size:7px;padding:1px 4px;border-radius:3px;font-weight:700}
+.kind-seed  {background:#0a1a2a;color:#58a6ff}
+.kind-active{background:#0c2010;color:#3fb950}
+.kind-manual{background:#1a1a1a;color:#444}
+.src-preview{display:none;font-size:9px;color:#2a2a2a;line-height:1.5;padding:3px 0 2px;font-style:italic}
 #d-history{display:flex;flex-direction:column;gap:4px}
 .hist-row{display:flex;justify-content:space-between;align-items:center;
   background:#0d0d0d;border:1px solid #181818;border-radius:3px;padding:4px 7px}
@@ -284,15 +291,21 @@ async function showDetail(lens) {
     const d = await r.json();
 
     if (d.sources.length === 0) {
-      srcEl.innerHTML = '<span style="color:#252525">no corpus yet — run seed_corpus.py</span>';
+      srcEl.innerHTML = '<span style="color:#252525;font-size:10px">no corpus yet — run seed_corpus.py</span>';
     } else {
       srcEl.innerHTML = d.sources.map(s => {
-        const label = s.title || s.source.replace('wikipedia:','');
-        const src   = s.source.startsWith('wikipedia:') ? 'wikipedia' : s.source;
-        const age   = reltime(s.saved_at);
+        const kindCls = `kind-${s.kind}`;
+        const kindLbl = s.kind.toUpperCase();
+        const age     = reltime(s.saved_at);
         return `<div class="src-row">
-          <span class="src-title">${label}</span>
-          <span class="src-meta">${src} · ${age}</span>
+          <div class="src-top">
+            <span class="src-title">${s.title}</span>
+            <div class="src-right">
+              <span class="src-meta">${age}</span>
+              <span class="kind ${kindCls}">${kindLbl}</span>
+            </div>
+          </div>
+          ${s.preview ? `<div class="src-preview">${s.preview}</div>` : ''}
         </div>`;
       }).join('');
     }

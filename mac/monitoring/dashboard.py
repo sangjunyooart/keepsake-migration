@@ -131,9 +131,17 @@ def lens_detail(lens: str) -> dict:
         for f in files:
             try:
                 item = json.loads(open(f).read())
+                text  = item.get("text", "")
+                title = item.get("title", "") or text.split("\n")[0][:80]
+                # First non-empty line after title as preview
+                lines  = [l.strip() for l in text.split("\n") if l.strip()]
+                preview = lines[1] if len(lines) > 1 else lines[0] if lines else ""
+                src = item.get("source", "")
                 sources.append({
-                    "title":    item.get("title", ""),
-                    "source":   item.get("source", ""),
+                    "title":    title,
+                    "source":   src,
+                    "kind":     "seed" if "wikipedia:" in src else "active" if src else "manual",
+                    "preview":  preview[:200],
                     "saved_at": item.get("saved_at", ""),
                 })
             except Exception:
