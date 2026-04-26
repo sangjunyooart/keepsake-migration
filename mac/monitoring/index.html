@@ -187,10 +187,9 @@ function switchTo(id) {
   document.getElementById(`tab-${id}`).classList.add('active');
   ov.style.display     = 'none';
   viewer.style.display = 'block';
-  // Route through proxy so iframe works without X-Frame-Options issues
   const proxyUrl = svc.local
     ? `/monitor`
-    : `/proxy/${svc.port}${svc.path}`;
+    : `http://localhost:${svc.port}${svc.path}`;
   if (viewer.dataset.current !== proxyUrl) {
     viewer.src = proxyUrl;
     viewer.dataset.current = proxyUrl;
