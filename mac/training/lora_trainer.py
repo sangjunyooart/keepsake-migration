@@ -203,8 +203,13 @@ class LensLoRATrainer:
         return texts
 
     def _find_latest_checkpoint(self) -> Optional[Path]:
+        # Only return checkpoints that contain a valid PEFT adapter_config.json.
+        # Incomplete checkpoints (from killed training runs) are skipped.
         checkpoints = sorted(self.adapter_dir.glob("checkpoint_*"))
-        return checkpoints[-1] if checkpoints else None
+        for ckpt in reversed(checkpoints):
+            if (ckpt / "adapter_config.json").exists():
+                return ckpt
+        return None
 
     def _write_version(self, ckpt_dir: Path, tag: str):
         import json
