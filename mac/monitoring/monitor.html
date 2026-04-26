@@ -16,7 +16,11 @@ html,body{background:#0c0c0c;color:#ccc;
 .mac-stat:first-child{padding-left:0}
 .mac-stat:last-child{border-right:none}
 .mac-val{font-weight:700;color:#666}
-#last-refresh{margin-left:auto;font-size:9px;color:#252525}
+#last-refresh{font-size:9px;color:#252525}
+#refresh-btn{margin-left:auto;background:none;border:1px solid #222;border-radius:4px;
+  color:#444;font-family:inherit;font-size:9px;padding:2px 8px;cursor:pointer;transition:all .1s}
+#refresh-btn:hover{border-color:#3fb950;color:#3fb950}
+#refresh-btn.spinning{color:#555;border-color:#1a1a1a;cursor:default}
 
 #grid{
   display:grid;grid-template-columns:repeat(3,1fr);
@@ -67,6 +71,7 @@ html,body{background:#0c0c0c;color:#ccc;
   <div class="mac-stat">RAM <span class="mac-val" id="m-ram">—</span></div>
   <div class="mac-stat">DISK <span class="mac-val" id="m-disk">—</span></div>
   <span id="last-refresh">—</span>
+  <button id="refresh-btn" onclick="manualRefresh()">↻ refresh</button>
 </div>
 
 <div id="grid"></div>
@@ -182,6 +187,17 @@ async function refresh() {
     } else {
       piSec.style.display = 'none';
     }
+  });
+}
+
+function manualRefresh() {
+  const btn = document.getElementById('refresh-btn');
+  if (btn.classList.contains('spinning')) return;
+  btn.classList.add('spinning');
+  btn.textContent = '↻ …';
+  refresh().finally(() => {
+    btn.classList.remove('spinning');
+    btn.textContent = '↻ refresh';
   });
 }
 
