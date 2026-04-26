@@ -24,6 +24,7 @@ mkdir -p "$LOG_DIR"
 # Make launcher scripts executable
 chmod +x "$SCRIPT_DIR/start-lens.sh"
 chmod +x "$SCRIPT_DIR/start-dashboard.sh"
+chmod +x "$SCRIPT_DIR/start-parallax-server.sh"
 chmod +x "$HOME/keepsake-migration/mac/scripts/open-admin-pages.sh"
 
 PLISTS=(
