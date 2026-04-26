@@ -12,6 +12,7 @@ sleep 20
     "http://localhost:8001" \
     "http://localhost:8002" \
     "http://localhost:8003" \
+    "http://localhost:8765" \
     "http://localhost:8080" \
     "http://localhost:8080/monitor" \
     --new-window \

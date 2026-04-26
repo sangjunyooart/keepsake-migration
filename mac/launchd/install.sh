@@ -28,6 +28,8 @@ chmod +x "$HOME/keepsake-migration/mac/scripts/open-admin-pages.sh"
 
 PLISTS=(
     "com.keepsake.cloudflared.plist"
+    "com.keepsake.cloudflared-parallax.plist"
+    "com.keepsake.parallax.plist"
     "com.keepsake.drift.plist"
     "com.keepsake.drift-en.plist"
     "com.keepsake.drift-gr.plist"
