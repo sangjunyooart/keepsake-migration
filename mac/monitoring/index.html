@@ -89,7 +89,7 @@ html,body{height:100vh;display:flex;flex-direction:column;overflow:hidden;
 .ab:hover{background:#222;color:#aaa;border-color:#333}
 .cv{font-size:9px;color:#333;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* shared iframe */
+/* shared iframe — kept for /monitor only */
 #viewer{flex:1;display:none;border:none;background:#fff;width:100%}
 </style>
 </head>
@@ -114,10 +114,10 @@ html,body{height:100vh;display:flex;flex-direction:column;overflow:hidden;
 
 <script>
 const SVCS = [
-  {id:'ar',  name:'drift · AR',  port:8000, path:'/'},
-  {id:'en',  name:'drift · EN',  port:8001, path:'/'},
-  {id:'gr',  name:'drift · GR',  port:8002, path:'/'},
-  {id:'br',  name:'drift · BR',  port:8003, path:'/'},
+  {id:'ar',  name:'drift · AR',  port:8000, path:'/admin'},
+  {id:'en',  name:'drift · EN',  port:8001, path:'/admin'},
+  {id:'gr',  name:'drift · GR',  port:8002, path:'/admin'},
+  {id:'br',  name:'drift · BR',  port:8003, path:'/admin'},
   {id:'px',  name:'parallax',    port:8765, path:'/'},
   {id:'mon', name:'monitor',     port:8080, path:'/monitor', local:true},
 ];
@@ -175,16 +175,22 @@ document.addEventListener('click', e => {
 
 function switchTo(id) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`tab-${id === 'home' ? 'home' : id}`).classList.add('active');
+
   if (id === 'home') {
     ov.style.display     = 'grid';
     viewer.style.display = 'none';
-    document.getElementById('tab-home').classList.add('active');
     return;
   }
+
+  // Open admin page directly in a new Chrome tab
   const svc = SVCS.find(s => s.id === id);
-  ov.style.display     = 'none';
-  viewer.style.display = 'block';
-  viewer.src = `http://localhost:${svc.port}${svc.path}`;
+  window.open(`http://localhost:${svc.port}${svc.path}`, `keepsake-${id}`);
+
+  // Stay on overview — it's the compact home base
+  ov.style.display     = 'grid';
+  viewer.style.display = 'none';
+  document.getElementById('tab-home').classList.add('active');
   document.getElementById(`tab-${id}`).classList.add('active');
 }
 
