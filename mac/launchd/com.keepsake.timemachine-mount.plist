@@ -3,14 +3,22 @@
     "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   com.keepsake.timemachine-mount.plist
-  Remounts the Time Machine SMB share on boot / network-up and
-  re-registers it with tmutil.
 
-  Install:
-    sudo cp com.keepsake.timemachine-mount.plist /Library/LaunchDaemons/
-    sudo launchctl load /Library/LaunchDaemons/com.keepsake.timemachine-mount.plist
+  부팅 후 Thunderbolt Bridge가 올라오면 자동으로 SMB 공유를 마운트하고
+  Time Machine 대상을 재등록합니다.
 
-  Edit TM_HOST / TM_SHARE / TM_MOUNT below to match your setup.
+  설치:
+    sudo mkdir -p /usr/local/lib/keepsake
+    sudo cp mac/scripts/setup_timemachine.sh /usr/local/lib/keepsake/
+    sudo chmod +x /usr/local/lib/keepsake/setup_timemachine.sh
+    sudo cp mac/launchd/com.keepsake.timemachine-mount.plist /Library/LaunchDaemons/
+    sudo launchctl load -w /Library/LaunchDaemons/com.keepsake.timemachine-mount.plist
+
+  로그 확인:
+    tail -f /var/log/keepsake-timemachine-mount.log
+
+  TM_SHARE=auto 이면 smbutil로 공유를 자동탐색합니다.
+  비밀번호가 있으면 TM_PASS 항목을 채우세요.
 -->
 <plist version="1.0">
 <dict>
@@ -20,29 +28,45 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <!-- Absolute path to the setup script -->
         <string>/usr/local/lib/keepsake/setup_timemachine.sh</string>
     </array>
 
     <key>EnvironmentVariables</key>
     <dict>
+        <!-- 백업 Mac의 Thunderbolt Bridge 링크-로컬 IP -->
         <key>TM_HOST</key>
         <string>169.254.72.157</string>
+
+        <!-- "auto" = SMB 공유 자동탐색. 수동 지정 시 공유 이름 입력 -->
         <key>TM_SHARE</key>
-        <string>TimeMachine</string>
+        <string>auto</string>
+
+        <!-- SMB 사용자 (빈값이면 현재 로그인 사용자 자동 감지) -->
         <key>TM_USER</key>
-        <string>guest</string>
+        <string></string>
+
+        <!-- SMB 비밀번호 (없으면 빈값 유지) -->
+        <key>TM_PASS</key>
+        <string></string>
+
         <key>TM_MOUNT</key>
-        <string>/Volumes/TimeMachine</string>
+        <string>/Volumes/TimeMachine-TB</string>
     </dict>
 
-    <!-- Run 60 s after boot to let networking settle -->
+    <!--
+      Thunderbolt Bridge는 부팅 후 인터페이스 활성화에 시간이 걸립니다.
+      90초 딜레이를 주어 링크-로컬 주소 할당이 완료된 후 실행합니다.
+    -->
     <key>StartInterval</key>
-    <integer>60</integer>
+    <integer>90</integer>
 
-    <!-- Also fire whenever the network interface comes up -->
+    <!--
+      /var/run/utmpx 가 변경될 때 (로그인/로그아웃) 재실행.
+      Thunderbolt 케이블을 뽑았다가 다시 꽂았을 때도 커버됩니다.
+    -->
     <key>WatchPaths</key>
     <array>
+        <string>/var/run/utmpx</string>
         <string>/var/run/resolv.conf</string>
     </array>
 
@@ -54,7 +78,7 @@
     <key>StandardErrorPath</key>
     <string>/var/log/keepsake-timemachine-mount.log</string>
 
-    <!-- Retry on failure, up to 3 times -->
+    <!-- 실패 시 30초 후 재시도 -->
     <key>ThrottleInterval</key>
     <integer>30</integer>
 </dict>

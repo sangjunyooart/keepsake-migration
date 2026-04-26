@@ -1,352 +1,339 @@
 #!/usr/bin/env python3
 """
-Detect and configure Time Machine backup disk.
+Thunderbolt Bridge 전용 Time Machine 디스크 탐지 및 설정 도구.
 
-Handles the common failure case where the backup disk is unreachable because
-it has a link-local (169.254.x.x) IP — typical for Thunderbolt bridge
-connections and direct Ethernet when DHCP is absent.
+"Backup Disk Not Available 169.254.x.x" 오류 수정.
 
-Usage:
-    python3 detect_timemachine_disk.py [--host 169.254.72.157] [--share TimeMachine]
-    python3 detect_timemachine_disk.py --scan       # scan via mDNS + link-local ARP
-    python3 detect_timemachine_disk.py --configure  # mount + register with tmutil
+사용법:
+    python3 detect_timemachine_disk.py                    # 현재 상태 진단
+    python3 detect_timemachine_disk.py --scan             # 링크-로컬 공유 탐색
+    python3 detect_timemachine_disk.py --configure        # 마운트 + tmutil 등록
+    python3 detect_timemachine_disk.py --host 169.254.72.157 --configure
 """
 
 import argparse
 import ipaddress
-import os
 import re
 import socket
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 
-LINK_LOCAL_NETWORK = ipaddress.IPv4Network("169.254.0.0/16")
-DEFAULT_MOUNT_BASE = Path("/Volumes")
+LINK_LOCAL_NET = ipaddress.IPv4Network("169.254.0.0/16")
 SMB_PORT = 445
-AFP_PORT = 548
-CONNECT_TIMEOUT = 3  # seconds
+TIMEOUT = 3
 
 
-# ---------------------------------------------------------------------------
-# Network helpers
-# ---------------------------------------------------------------------------
+# ── 유틸 ────────────────────────────────────────────────────────────────────
 
 def is_link_local(addr: str) -> bool:
     try:
-        return ipaddress.IPv4Address(addr) in LINK_LOCAL_NETWORK
+        return ipaddress.IPv4Address(addr) in LINK_LOCAL_NET
     except ValueError:
         return False
 
 
-def port_open(host: str, port: int, timeout: float = CONNECT_TIMEOUT) -> bool:
+def port_open(host: str, port: int, timeout: float = TIMEOUT) -> bool:
     try:
         with socket.create_connection((host, port), timeout=timeout):
             return True
-    except (OSError, socket.timeout):
+    except OSError:
         return False
 
 
-def probe_host(host: str) -> dict:
-    """Return what file-sharing protocols are reachable on host."""
-    return {
-        "host": host,
-        "smb": port_open(host, SMB_PORT),
-        "afp": port_open(host, AFP_PORT),
-        "reachable": port_open(host, SMB_PORT) or port_open(host, AFP_PORT),
-    }
+def run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, capture_output=True, text=True, **kw)
 
 
-# ---------------------------------------------------------------------------
-# mDNS / Bonjour discovery
-# ---------------------------------------------------------------------------
+# ── Thunderbolt Bridge 인터페이스 ───────────────────────────────────────────
 
-def discover_via_dns_sd() -> list[dict]:
-    """
-    Use dns-sd to browse _smb._tcp and _afpovertcp._tcp.
-    Returns list of {host, ip, protocol} dicts.
-    Times out after 5 s.
-    """
-    results = []
-    for svc_type in ("_smb._tcp", "_afpovertcp._tcp"):
-        try:
-            out = subprocess.run(
-                ["dns-sd", "-B", svc_type, "local."],
-                capture_output=True, text=True, timeout=5,
-            ).stdout
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            continue
+def find_tb_interface() -> str | None:
+    """Thunderbolt Bridge 인터페이스 이름 반환 (예: bridge0, en5)."""
+    hw = run(["networksetup", "-listallhardwareports"]).stdout
+    lines = hw.splitlines()
+    for i, line in enumerate(lines):
+        if "Thunderbolt Bridge" in line and i + 1 < len(lines):
+            m = re.search(r"Device:\s*(\S+)", lines[i + 1])
+            if m:
+                return m.group(1)
 
-        for line in out.splitlines():
-            # Typical line: "Timestamp  Flags  If  Domain  Type  Name"
-            match = re.search(r"local\.\s+(\S+)$", line)
-            if match:
-                results.append({"name": match.group(1), "protocol": svc_type})
-    return results
-
-
-def resolve_mdns_name(name: str, svc_type: str) -> str | None:
-    """Resolve a Bonjour service to an IP address."""
-    try:
-        out = subprocess.run(
-            ["dns-sd", "-L", name, svc_type, "local."],
-            capture_output=True, text=True, timeout=5,
-        ).stdout
-        match = re.search(r"(\d{1,3}(?:\.\d{1,3}){3})", out)
-        if match:
-            return match.group(1)
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
+    # 폴백: 169.254 주소를 가진 인터페이스 탐색
+    ifc = run(["ifconfig"]).stdout
+    current = None
+    for line in ifc.splitlines():
+        m = re.match(r"^(\S+):", line)
+        if m:
+            current = m.group(1)
+        if current and re.search(r"inet 169\.254\.", line):
+            return current
     return None
 
 
-# ---------------------------------------------------------------------------
-# ARP-based link-local scan
-# ---------------------------------------------------------------------------
+def get_link_local_ip(iface: str) -> str | None:
+    out = run(["ipconfig", "getifaddr", iface]).stdout.strip()
+    return out if is_link_local(out) else None
 
-def arp_table_link_local() -> list[str]:
-    """Return link-local IPs currently in the ARP cache."""
-    try:
-        out = subprocess.run(["arp", "-a"], capture_output=True, text=True).stdout
-    except FileNotFoundError:
-        return []
 
-    addrs = []
+def ensure_interface_up(iface: str) -> bool:
+    result = run(["ifconfig", iface, "up"])
+    return result.returncode == 0
+
+
+def tb_interface_summary() -> dict:
+    iface = find_tb_interface()
+    if not iface:
+        return {"found": False}
+    ip = get_link_local_ip(iface)
+    status_out = run(["ifconfig", iface]).stdout
+    active = "status: active" in status_out
+    return {"found": True, "iface": iface, "local_ip": ip, "active": active}
+
+
+# ── 링크-로컬 호스트 탐색 ───────────────────────────────────────────────────
+
+def arp_link_local_hosts() -> list[str]:
+    out = run(["arp", "-a"]).stdout
+    addrs = re.findall(r"\((\d{1,3}(?:\.\d{1,3}){3})\)", out)
+    return [a for a in addrs if is_link_local(a)]
+
+
+def list_smb_shares(host: str, user: str = "guest") -> list[str]:
+    out = run(["smbutil", "view", f"//{user}@{host}"], timeout=8).stdout
+    shares = []
     for line in out.splitlines():
-        match = re.search(r"\((\d{1,3}(?:\.\d{1,3}){3})\)", line)
-        if match and is_link_local(match.group(1)):
-            addrs.append(match.group(1))
-    return addrs
+        parts = line.split()
+        if parts and not line.startswith("Share") and not line.startswith("---"):
+            shares.append(parts[0])
+    return shares
 
 
-def ping_sweep_link_local(subnet_prefix: str = "169.254.72") -> list[str]:
-    """
-    Ping-sweep a /24 within the link-local range.
-    Only useful if we already know the rough subnet from a previously seen IP.
-    """
-    reachable = []
-    for last_octet in range(1, 255):
-        addr = f"{subnet_prefix}.{last_octet}"
-        ret = subprocess.run(
-            ["ping", "-c", "1", "-W", "1", "-q", addr],
-            capture_output=True,
-        ).returncode
-        if ret == 0:
-            reachable.append(addr)
-    return reachable
+# ── Time Machine 상태 ───────────────────────────────────────────────────────
 
-
-# ---------------------------------------------------------------------------
-# Mount helpers
-# ---------------------------------------------------------------------------
-
-def list_current_tm_destinations() -> list[dict]:
-    """Parse `tmutil destinationinfo` output."""
-    try:
-        out = subprocess.run(
-            ["tmutil", "destinationinfo"],
-            capture_output=True, text=True,
-        ).stdout
-    except FileNotFoundError:
-        return []
-
-    destinations = []
-    current: dict = {}
+def tm_destinations() -> list[dict]:
+    out = run(["tmutil", "destinationinfo"]).stdout
+    dests, cur = [], {}
     for line in out.splitlines():
         line = line.strip()
         if line.startswith("===="):
-            if current:
-                destinations.append(current)
-            current = {}
+            if cur:
+                dests.append(cur)
+            cur = {}
         elif ":" in line:
-            key, _, val = line.partition(":")
-            current[key.strip()] = val.strip()
-    if current:
-        destinations.append(current)
-    return destinations
+            k, _, v = line.partition(":")
+            cur[k.strip()] = v.strip()
+    if cur:
+        dests.append(cur)
+    return dests
 
 
-def mount_smb(host: str, share: str, username: str = "guest",
+# ── 마운트 ──────────────────────────────────────────────────────────────────
+
+def mount_smb(host: str, share: str, user: str = "guest",
               password: str = "", mount_point: Path | None = None) -> Path | None:
-    """
-    Mount an SMB share. Returns mount point on success, None on failure.
-    For link-local hosts (169.254.x.x) we skip Bonjour and use the raw IP.
-    """
     if mount_point is None:
-        safe_share = re.sub(r"[^a-zA-Z0-9_-]", "_", share)
-        mount_point = DEFAULT_MOUNT_BASE / f"TM-{safe_share}"
+        mount_point = Path("/Volumes") / f"TimeMachine-TB"
 
     mount_point.mkdir(parents=True, exist_ok=True)
 
-    if password:
-        url = f"smb://{username}:{password}@{host}/{share}"
-    else:
-        url = f"smb://{username}@{host}/{share}"
+    url = f"smb://{user}:{password}@{host}/{share}" if password \
+        else f"smb://{user}@{host}/{share}"
 
-    result = subprocess.run(
-        ["mount", "-t", "smbfs", url, str(mount_point)],
-        capture_output=True, text=True,
-    )
+    for cmd in (["mount_smbfs", url, str(mount_point)],
+                ["/sbin/mount", "-t", "smbfs", url, str(mount_point)]):
+        if run(cmd).returncode == 0:
+            return mount_point
 
-    if result.returncode == 0:
-        print(f"  Mounted SMB share at {mount_point}")
-        return mount_point
-
-    # Try open-source mount_smbfs path (available on macOS)
-    result2 = subprocess.run(
-        ["mount_smbfs", url, str(mount_point)],
-        capture_output=True, text=True,
-    )
-    if result2.returncode == 0:
-        print(f"  Mounted via mount_smbfs at {mount_point}")
-        return mount_point
-
-    print(f"  SMB mount failed: {result.stderr.strip() or result2.stderr.strip()}")
     return None
 
 
-def configure_tmutil(volume_path: Path) -> bool:
-    """Register volume with Time Machine via tmutil."""
-    result = subprocess.run(
-        ["tmutil", "setdestination", "-p", str(volume_path)],
-        capture_output=True, text=True,
-    )
-    if result.returncode == 0:
-        print(f"  Time Machine destination set to {volume_path}")
-        return True
-    print(f"  tmutil setdestination failed: {result.stderr.strip()}")
-    print("  Tip: run with sudo if permission denied")
+def tmutil_set_destination(path: Path) -> bool:
+    for flags in (["-p"], []):
+        result = run(["tmutil", "setdestination"] + flags + [str(path)])
+        if result.returncode == 0:
+            return True
     return False
 
 
-# ---------------------------------------------------------------------------
-# Diagnostic report
-# ---------------------------------------------------------------------------
+# ── 모드별 실행 ─────────────────────────────────────────────────────────────
 
-def run_diagnostic(host: str) -> None:
-    print(f"\n=== Time Machine Disk Diagnostic for {host} ===\n")
+def cmd_diagnostic(host: str) -> None:
+    print(f"\n{'═'*55}")
+    print(f"  Time Machine 진단 — {host}")
+    print(f"{'═'*55}\n")
+
+    # Thunderbolt Bridge
+    tb = tb_interface_summary()
+    if tb["found"]:
+        iface = tb["iface"]
+        print(f"  Thunderbolt Bridge 인터페이스 : {iface}")
+        print(f"  인터페이스 상태               : {'active' if tb['active'] else 'inactive ← 문제'}")
+        print(f"  이 Mac의 링크-로컬 IP          : {tb['local_ip'] or '미할당 ← 문제'}")
+    else:
+        print("  Thunderbolt Bridge 인터페이스 : 찾을 수 없음")
+        print("  → 시스템 설정 > 네트워크 > Thunderbolt Bridge 확인")
+
+    print()
 
     if is_link_local(host):
-        print(f"  NOTE: {host} is a link-local address (169.254.x.x)")
-        print("  This is expected for Thunderbolt bridge or direct Ethernet")
-        print("  connections when no DHCP server is present.\n")
+        print(f"  대상 IP {host} : 링크-로컬 (Thunderbolt Bridge 정상 동작)")
+    else:
+        print(f"  대상 IP {host} : 일반 IP")
 
-    info = probe_host(host)
-    print(f"  SMB (port 445) : {'open' if info['smb'] else 'closed'}")
-    print(f"  AFP (port 548) : {'open' if info['afp'] else 'closed'}")
+    smb_ok = port_open(host, SMB_PORT)
+    print(f"  SMB 포트 445   : {'열림' if smb_ok else '닫힘'}")
 
-    if not info["reachable"]:
-        print("\n  Host is NOT reachable. Possible causes:")
-        print("  1. Cable not connected / Thunderbolt cable not seated")
-        print("  2. Firewall on the backup device blocking SMB/AFP")
-        print("  3. Wrong IP — run with --scan to rediscover")
-        print("  4. For Thunderbolt: System Preferences > Network > Thunderbolt Bridge")
-        print("     must be active on BOTH machines")
+    if not smb_ok:
+        print("\n  ─── 호스트 연결 불가 ───────────────────────────────")
+        print("  ① Thunderbolt 케이블이 양쪽에 꽂혀 있는지 확인")
+        print("  ② 백업 Mac: 시스템 설정 > 일반 > 공유 > 파일 공유 ON")
+        print("  ③ 백업 Mac: 시스템 설정 > 네트워크 > Thunderbolt Bridge ON")
+        print("  ④ 이 Mac:   시스템 설정 > 네트워크 > Thunderbolt Bridge ON")
+        print(f"  ⑤ ARP 캐시 확인: arp -a | grep 169.254")
         sys.exit(1)
 
-    print("\n  Current Time Machine destinations:")
-    dests = list_current_tm_destinations()
+    print("\n  현재 Time Machine 대상:")
+    dests = tm_destinations()
     if dests:
         for d in dests:
-            print(f"    - {d.get('Name', '?')}  ({d.get('URL', d.get('Mount Point', '?'))})")
+            name = d.get("Name", "?")
+            url = d.get("URL") or d.get("Mount Point", "?")
+            kind = d.get("Kind", "")
+            print(f"    • {name}  [{kind}]  {url}")
     else:
-        print("    (none configured)")
+        print("    (설정 없음)")
+
+    print()
 
 
-def run_scan(known_ip: str | None = None) -> None:
-    print("\n=== Scanning for Time Machine Shares ===\n")
+def cmd_scan(host: str) -> None:
+    print(f"\n{'═'*55}")
+    print("  링크-로컬 Time Machine 공유 탐색")
+    print(f"{'═'*55}\n")
 
-    print("  Checking ARP cache for link-local hosts...")
-    arp_hosts = arp_table_link_local()
-    if arp_hosts:
-        print(f"  Found link-local hosts in ARP: {arp_hosts}")
+    tb = tb_interface_summary()
+    if tb["found"]:
+        print(f"  Thunderbolt Bridge: {tb['iface']}  (이 Mac: {tb['local_ip'] or '주소 없음'})")
     else:
-        print("  No link-local hosts in ARP cache")
+        print("  Thunderbolt Bridge 인터페이스 없음")
+    print()
 
-    print("\n  Probing hosts for SMB/AFP...")
-    candidates = list({*arp_hosts, *([] if not known_ip else [known_ip])})
+    known = {host} if is_link_local(host) else set()
+    from_arp = set(arp_link_local_hosts())
+    candidates = sorted(known | from_arp)
+
+    if not candidates:
+        print("  링크-로컬 호스트를 찾지 못했습니다.")
+        print("  Thunderbolt 케이블 연결 확인 후 재시도하세요.")
+        return
+
     for h in candidates:
-        info = probe_host(h)
-        status = []
-        if info["smb"]:
-            status.append("SMB")
-        if info["afp"]:
-            status.append("AFP")
-        label = ", ".join(status) if status else "no response"
-        print(f"    {h:20s}  {label}")
+        smb = port_open(h, SMB_PORT)
+        marker = "← 백업 Mac 가능성 높음" if smb else ""
+        print(f"  {h:20s}  SMB={'열림' if smb else '닫힘'}  {marker}")
+        if smb:
+            shares = list_smb_shares(h)
+            if shares:
+                for s in shares:
+                    print(f"    └─ 공유: {s}")
+            else:
+                print("    └─ 공유 목록 조회 실패 (인증 필요 가능)")
 
-    print("\n  Attempting Bonjour/mDNS discovery...")
-    services = discover_via_dns_sd()
-    if services:
-        for svc in services:
-            ip = resolve_mdns_name(svc["name"], svc["protocol"])
-            print(f"    {svc['name']:30s}  {svc['protocol']:20s}  ip={ip or '?'}")
-    else:
-        print("    No services found via mDNS (normal for link-local direct connections)")
+    print()
+    print("  설정하려면:")
+    for h in candidates:
+        if port_open(h, SMB_PORT):
+            print(f"    python3 detect_timemachine_disk.py --host {h} --configure")
 
 
-def run_configure(host: str, share: str, username: str,
+def cmd_configure(host: str, share: str, user: str,
                   password: str, mount_point: str | None) -> None:
-    print(f"\n=== Configuring Time Machine: {host}/{share} ===\n")
+    print(f"\n{'═'*55}")
+    print(f"  Time Machine 설정: {host}/{share}")
+    print(f"{'═'*55}\n")
 
-    if not probe_host(host)["smb"]:
-        print(f"  ERROR: {host} SMB port closed. Run --diagnostic first.")
+    # Thunderbolt Bridge 활성화
+    tb = tb_interface_summary()
+    if tb["found"] and not tb["active"]:
+        print(f"  Thunderbolt Bridge({tb['iface']}) 활성화 중...")
+        ensure_interface_up(tb["iface"])
+
+    if not port_open(host, SMB_PORT):
+        print(f"  오류: {host} SMB 포트가 닫혀 있습니다.")
+        print("  먼저 --scan 또는 --diagnostic 으로 연결 상태를 확인하세요.")
         sys.exit(1)
+
+    # 공유 이름 자동탐색
+    if share == "auto":
+        shares = list_smb_shares(host, user)
+        if not shares:
+            shares = list_smb_shares(host, "guest")
+            if shares:
+                user = "guest"
+        for preferred in ("TimeMachine", "Backup", "Data"):
+            if any(s.lower() == preferred.lower() for s in shares):
+                share = next(s for s in shares if s.lower() == preferred.lower())
+                break
+        if share == "auto":
+            share = shares[0] if shares else "TimeMachine"
+        print(f"  공유 자동선택: {share}")
 
     mp = Path(mount_point) if mount_point else None
-    mounted = mount_smb(host, share, username, password, mp)
+    mounted = mount_smb(host, share, user, password, mp)
     if not mounted:
+        print("  SMB 마운트 실패.")
+        print(f"  수동: Finder > 서버에 연결 > smb://{host}/{share}")
+        sys.exit(1)
+    print(f"  마운트 완료: {mounted}")
+
+    if tmutil_set_destination(mounted):
+        print(f"  Time Machine 대상 등록 완료: {mounted}")
+    else:
+        print("  tmutil setdestination 실패 — sudo 로 재실행하거나 수동 등록:")
+        print("  시스템 설정 > 일반 > Time Machine > 백업 디스크 추가")
         sys.exit(1)
 
-    ok = configure_tmutil(mounted)
-    if not ok:
-        sys.exit(1)
-
-    print(f"\n  Done. Time Machine is now configured to back up to {mounted}")
-    print("  To start a backup immediately:  tmutil startbackup")
+    print("\n  완료. 즉시 백업 시작:")
+    print("    tmutil startbackup")
+    print()
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
+# ── CLI ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Detect and configure a Time Machine backup disk, "
-                    "including link-local (169.254.x.x) network addresses.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+    p = argparse.ArgumentParser(
+        description="Thunderbolt Bridge Time Machine 디스크 탐지/설정 (169.254.x.x 대응)",
     )
-    parser.add_argument("--host", default="169.254.72.157",
-                        help="IP or hostname of the backup disk (default: 169.254.72.157)")
-    parser.add_argument("--share", default="TimeMachine",
-                        help="SMB share name on the backup device (default: TimeMachine)")
-    parser.add_argument("--username", default="guest",
-                        help="SMB username (default: guest)")
-    parser.add_argument("--password", default="",
-                        help="SMB password (default: empty / guest)")
-    parser.add_argument("--mount-point",
-                        help="Where to mount the share (default: /Volumes/TM-<share>)")
+    p.add_argument("--host", default="169.254.72.157",
+                   help="백업 Mac IP (기본: 169.254.72.157)")
+    p.add_argument("--share", default="auto",
+                   help="SMB 공유 이름 (기본: auto = 자동탐색)")
+    p.add_argument("--username", default="",
+                   help="SMB 사용자 (기본: 현재 사용자)")
+    p.add_argument("--password", default="",
+                   help="SMB 비밀번호 (기본: 빈값)")
+    p.add_argument("--mount-point",
+                   help="마운트 경로 (기본: /Volumes/TimeMachine-TB)")
 
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--diagnostic", action="store_true",
-                      help="Check reachability and show current TM config")
+    mode = p.add_mutually_exclusive_group()
     mode.add_argument("--scan", action="store_true",
-                      help="Scan link-local network and mDNS for backup shares")
+                      help="링크-로컬 네트워크에서 백업 공유 탐색")
     mode.add_argument("--configure", action="store_true",
-                      help="Mount the share and register with Time Machine")
+                      help="마운트 후 Time Machine 등록")
 
-    args = parser.parse_args()
+    args = p.parse_args()
+
+    user = args.username or subprocess.run(
+        ["stat", "-f", "%Su", "/dev/console"],
+        capture_output=True, text=True,
+    ).stdout.strip() or "guest"
 
     if args.scan:
-        run_scan(known_ip=args.host)
+        cmd_scan(args.host)
     elif args.configure:
-        run_configure(args.host, args.share, args.username,
-                      args.password, args.mount_point)
+        cmd_configure(args.host, args.share, user, args.password, args.mount_point)
     else:
-        # Default: diagnostic
-        run_diagnostic(args.host)
+        cmd_diagnostic(args.host)
 
 
 if __name__ == "__main__":

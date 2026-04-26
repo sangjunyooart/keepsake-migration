@@ -1,143 +1,288 @@
 #!/usr/bin/env bash
 # setup_timemachine.sh
 #
-# One-shot setup for a Time Machine backup disk reachable via Thunderbolt bridge
-# or direct Ethernet at a link-local (169.254.x.x) address.
+# Thunderbolt Bridge 전용 Time Machine 설정 스크립트.
 #
-# The "Backup Disk Not Available" error with a 169.254.x.x IP means macOS
-# Time Machine lost track of the share — usually because:
-#   (a) the Thunderbolt Bridge interface needs to be active on both machines, OR
-#   (b) the share was previously registered by hostname, not IP, and DNS failed
+# "Backup Disk Not Available 169.254.x.x" 오류 원인:
+#   macOS가 Thunderbolt Bridge 인터페이스가 올라오기 전에 TM 마운트를
+#   시도하거나, 인터페이스가 DOWN 상태여서 공유 드라이브를 찾지 못함.
 #
-# Run as: sudo bash setup_timemachine.sh
-# Env vars you can override:
-#   TM_HOST        backup disk IP          (default: 169.254.72.157)
-#   TM_SHARE       SMB share name          (default: TimeMachine)
-#   TM_USER        SMB username            (default: guest)
-#   TM_PASS        SMB password            (default: empty)
-#   TM_MOUNT       mount point             (default: /Volumes/TimeMachine)
+# 실행: sudo bash setup_timemachine.sh
+#
+# 환경 변수로 재정의 가능:
+#   TM_HOST    백업 Mac IP (기본: 169.254.72.157 / auto = 자동탐색)
+#   TM_SHARE   SMB 공유 이름 (기본: auto = smbutil로 자동탐색)
+#   TM_USER    SMB 사용자 (기본: 현재 로그인 사용자)
+#   TM_PASS    SMB 비밀번호 (기본: 빈값)
+#   TM_MOUNT   마운트 경로 (기본: /Volumes/TimeMachine-TB)
 
 set -euo pipefail
 
 TM_HOST="${TM_HOST:-169.254.72.157}"
-TM_SHARE="${TM_SHARE:-TimeMachine}"
-TM_USER="${TM_USER:-guest}"
+TM_SHARE="${TM_SHARE:-auto}"
+TM_USER="${TM_USER:-$(stat -f '%Su' /dev/console 2>/dev/null || echo guest)}"
 TM_PASS="${TM_PASS:-}"
-TM_MOUNT="${TM_MOUNT:-/Volumes/TimeMachine}"
+TM_MOUNT="${TM_MOUNT:-/Volumes/TimeMachine-TB}"
 
-log()  { printf '\e[34m[TM]\e[0m %s\n' "$*"; }
-ok()   { printf '\e[32m[OK]\e[0m %s\n' "$*"; }
-fail() { printf '\e[31m[ERR]\e[0m %s\n' "$*" >&2; exit 1; }
-warn() { printf '\e[33m[WARN]\e[0m %s\n' "$*"; }
+log()  { printf '\033[34m[TM]\033[0m %s\n' "$*"; }
+ok()   { printf '\033[32m[OK]\033[0m %s\n' "$*"; }
+fail() { printf '\033[31m[ERR]\033[0m %s\n' "$*" >&2; exit 1; }
+warn() { printf '\033[33m[WARN]\033[0m %s\n' "$*"; }
+step() { printf '\033[1m──── %s ────\033[0m\n' "$*"; }
 
-# ── 1. Check macOS
-if [[ "$(uname)" != "Darwin" ]]; then
-    fail "This script is macOS-only."
-fi
+[[ "$(uname)" == "Darwin" ]] || fail "macOS 전용 스크립트입니다."
 
-# ── 2. Require sudo (tmutil setdestination needs it)
 if [[ "$EUID" -ne 0 ]]; then
-    warn "Not running as root — will try anyway, but tmutil may fail."
-    warn "Re-run with: sudo bash $0"
+    warn "root 권한이 없습니다. tmutil setdestination 실패 가능."
+    warn "재실행: sudo bash $0"
 fi
 
-log "Backup host : $TM_HOST"
-log "Share       : $TM_SHARE"
-log "Mount point : $TM_MOUNT"
+# ═══════════════════════════════════════════════════════════
+# 1. Thunderbolt Bridge 인터페이스 찾기 & 활성화
+# ═══════════════════════════════════════════════════════════
+step "Thunderbolt Bridge 인터페이스 확인"
 
-# ── 3. Verify link-local address is expected
-if [[ "$TM_HOST" =~ ^169\.254\. ]]; then
-    log "Link-local address detected (169.254.x.x)"
-    log "Expected for Thunderbolt Bridge or direct Ethernet — continuing"
+TB_IFACE=""
+
+# networksetup으로 Thunderbolt Bridge 장치 이름 탐색
+while IFS= read -r line; do
+    if [[ "$line" == *"Thunderbolt Bridge"* ]]; then
+        # 다음 줄이 Device: enX 또는 bridgeX
+        read -r devline || true
+        iface=$(echo "$devline" | awk '{print $2}')
+        if [[ -n "$iface" ]]; then
+            TB_IFACE="$iface"
+            break
+        fi
+    fi
+done < <(networksetup -listallhardwareports 2>/dev/null)
+
+# 못 찾으면 ifconfig에서 169.254 주소를 가진 인터페이스 탐색
+if [[ -z "$TB_IFACE" ]]; then
+    TB_IFACE=$(ifconfig | awk '
+        /^[a-z]/ { iface=$1; gsub(/:$/,"",iface) }
+        /inet 169\.254\./ { print iface; exit }
+    ')
 fi
 
-# ── 4. Check Thunderbolt Bridge interface
-log "Checking network interfaces for Thunderbolt Bridge..."
-if ifconfig | grep -qE "bridge|thunderbolt" 2>/dev/null; then
-    ok "Thunderbolt Bridge interface found"
+if [[ -z "$TB_IFACE" ]]; then
+    warn "Thunderbolt Bridge 인터페이스를 찾지 못했습니다."
+    warn "확인: 시스템 설정 > 네트워크 > Thunderbolt Bridge 가 보이는지"
+    warn "케이블이 연결된 상태에서 잠시 후 재시도하거나 수동 지정:"
+    warn "  TM_HOST=169.254.72.157 sudo bash $0"
 else
-    warn "No Thunderbolt Bridge interface visible in ifconfig"
-    warn "On the backup Mac: System Settings > Network > Thunderbolt Bridge"
-    warn "  must be enabled. This script will continue but mount may fail."
+    ok "Thunderbolt Bridge 인터페이스: $TB_IFACE"
+
+    # 인터페이스 UP 보장
+    iface_status=$(ifconfig "$TB_IFACE" 2>/dev/null | grep -c "status: active" || true)
+    if [[ "$iface_status" -eq 0 ]]; then
+        log "$TB_IFACE 인터페이스를 UP 상태로 전환 중..."
+        ifconfig "$TB_IFACE" up 2>/dev/null || warn "ifconfig up 실패 (무시)"
+    fi
+
+    # 링크-로컬 주소 할당 대기 (최대 15초)
+    for i in $(seq 1 15); do
+        LOCAL_LL=$(ipconfig getifaddr "$TB_IFACE" 2>/dev/null || true)
+        if [[ "$LOCAL_LL" =~ ^169\.254\. ]]; then
+            ok "이 Mac의 Thunderbolt 주소: $LOCAL_LL"
+            break
+        fi
+        [[ "$i" -eq 15 ]] && warn "링크-로컬 주소 미할당 — 인터페이스 미연결 가능성"
+        sleep 1
+    done
 fi
 
-# ── 5. Ping the host
-log "Pinging $TM_HOST ..."
-if ping -c 3 -W 2 -q "$TM_HOST" > /dev/null 2>&1; then
-    ok "Host is reachable"
-else
-    fail "$TM_HOST is not reachable.
-  Checklist:
-  • Thunderbolt cable seated on both ends
-  • System Settings > Network > Thunderbolt Bridge: active on BOTH Macs
-  • Try: sudo ifconfig bridge0 up   (on this Mac)
-  • Try: arp -a | grep 169.254       (to see what link-local hosts are known)"
+# ═══════════════════════════════════════════════════════════
+# 2. 백업 호스트 자동탐색 (TM_HOST=auto 또는 기본값으로 연결 불가 시)
+# ═══════════════════════════════════════════════════════════
+step "백업 호스트 연결 확인"
+
+find_backup_host() {
+    # ARP 캐시에서 169.254.x.x 탐색
+    arp -a 2>/dev/null | grep -oE '169\.[0-9]+\.[0-9]+\.[0-9]+' | head -5
+}
+
+if ! ping -c 1 -W 2 -q "$TM_HOST" > /dev/null 2>&1; then
+    warn "$TM_HOST 에 응답 없음 — 링크-로컬 네트워크에서 자동탐색..."
+
+    FOUND_HOST=""
+    for candidate in $(find_backup_host); do
+        log "  탐색: $candidate"
+        if ping -c 1 -W 1 -q "$candidate" > /dev/null 2>&1; then
+            if nc -z -w 2 "$candidate" 445 2>/dev/null; then
+                FOUND_HOST="$candidate"
+                break
+            fi
+        fi
+    done
+
+    if [[ -n "$FOUND_HOST" ]]; then
+        ok "백업 호스트 발견: $FOUND_HOST"
+        TM_HOST="$FOUND_HOST"
+    else
+        fail "백업 호스트를 찾지 못했습니다.
+  체크리스트:
+  ① Thunderbolt 케이블이 양쪽 Mac에 완전히 꽂혀 있는지 확인
+  ② 백업 Mac: 시스템 설정 > 일반 > 공유 > 파일 공유 가 켜져 있는지 확인
+  ③ 백업 Mac: 시스템 설정 > 네트워크 > Thunderbolt Bridge 가 활성화되어 있는지 확인
+  ④ 이 Mac: 시스템 설정 > 네트워크 > Thunderbolt Bridge 가 활성화되어 있는지 확인
+  수동 확인: arp -a | grep 169.254"
+    fi
 fi
 
-# ── 6. Check SMB port
-log "Checking SMB port 445 on $TM_HOST ..."
+ok "백업 호스트 응답 확인: $TM_HOST"
+
+# SMB 포트 확인
 if nc -z -w 3 "$TM_HOST" 445 2>/dev/null; then
-    ok "SMB port open"
+    ok "SMB 포트(445) 열림"
 else
-    warn "SMB port 445 closed — will attempt mount anyway (AFP or alternate port possible)"
+    warn "SMB 포트 445 닫힘"
+    warn "백업 Mac: 시스템 설정 > 일반 > 공유 > 파일 공유 활성화 필요"
 fi
 
-# ── 7. Unmount stale mount if present
-if mount | grep -q "$TM_MOUNT" 2>/dev/null; then
-    log "Unmounting stale mount at $TM_MOUNT ..."
+# ═══════════════════════════════════════════════════════════
+# 3. 공유 이름 자동탐색
+# ═══════════════════════════════════════════════════════════
+step "SMB 공유 탐색"
+
+list_shares() {
+    local host="$1"
+    local user="$2"
+    smbutil view "//${user}@${host}" 2>/dev/null \
+        | grep -v "^Share\|^---\|^$" \
+        | awk '{print $1}' \
+        || true
+}
+
+if [[ "$TM_SHARE" == "auto" ]]; then
+    log "공유 목록 조회 중: smb://$TM_USER@$TM_HOST"
+    SHARES=$(list_shares "$TM_HOST" "$TM_USER")
+
+    if [[ -z "$SHARES" ]]; then
+        # guest로 재시도
+        SHARES=$(list_shares "$TM_HOST" "guest")
+        [[ -n "$SHARES" ]] && TM_USER="guest"
+    fi
+
+    if [[ -z "$SHARES" ]]; then
+        warn "공유 목록 조회 실패 — 기본값 'TimeMachine' 사용"
+        TM_SHARE="TimeMachine"
+    else
+        log "발견된 공유:"
+        echo "$SHARES" | while IFS= read -r s; do log "  • $s"; done
+
+        # TimeMachine / Backup / Data 순으로 우선 선택
+        for preferred in TimeMachine Backup Data; do
+            if echo "$SHARES" | grep -qi "^${preferred}$"; then
+                TM_SHARE="$preferred"
+                break
+            fi
+        done
+        # 그 외엔 첫 번째 공유 사용
+        [[ "$TM_SHARE" == "auto" ]] && TM_SHARE=$(echo "$SHARES" | head -1)
+        ok "사용할 공유: $TM_SHARE"
+    fi
+fi
+
+log "호스트: $TM_HOST  /  공유: $TM_SHARE  /  사용자: $TM_USER"
+
+# ═══════════════════════════════════════════════════════════
+# 4. 기존 마운트 정리
+# ═══════════════════════════════════════════════════════════
+step "기존 마운트 정리"
+
+if mount | grep -q " ${TM_MOUNT} " 2>/dev/null; then
+    log "기존 마운트 해제: $TM_MOUNT"
     diskutil unmount force "$TM_MOUNT" 2>/dev/null \
         || umount -f "$TM_MOUNT" 2>/dev/null \
-        || warn "Could not unmount existing $TM_MOUNT — proceeding"
+        || warn "강제 해제 실패 — 계속 진행"
 fi
+
+# 동일 호스트의 다른 마운트 포인트도 정리 (stale)
+mount | grep "//.*@${TM_HOST}/" | awk '{print $3}' | while IFS= read -r mp; do
+    log "  stale 마운트 해제: $mp"
+    diskutil unmount force "$mp" 2>/dev/null || true
+done
 
 mkdir -p "$TM_MOUNT"
 
-# ── 8. Mount SMB share
-log "Mounting smb://$TM_USER@$TM_HOST/$TM_SHARE → $TM_MOUNT ..."
+# ═══════════════════════════════════════════════════════════
+# 5. SMB 마운트
+# ═══════════════════════════════════════════════════════════
+step "SMB 공유 마운트"
+
 if [[ -n "$TM_PASS" ]]; then
     MOUNT_URL="smb://${TM_USER}:${TM_PASS}@${TM_HOST}/${TM_SHARE}"
+    DISPLAY_URL="smb://${TM_USER}:***@${TM_HOST}/${TM_SHARE}"
 else
     MOUNT_URL="smb://${TM_USER}@${TM_HOST}/${TM_SHARE}"
+    DISPLAY_URL="$MOUNT_URL"
 fi
 
-if mount -t smbfs "$MOUNT_URL" "$TM_MOUNT" 2>/dev/null; then
-    ok "Mounted via mount -t smbfs"
-elif mount_smbfs "$MOUNT_URL" "$TM_MOUNT" 2>/dev/null; then
-    ok "Mounted via mount_smbfs"
-else
-    # Last resort: open with Finder protocol
+log "마운트: $DISPLAY_URL → $TM_MOUNT"
+
+MOUNTED=false
+if mount_smbfs "$MOUNT_URL" "$TM_MOUNT" 2>/dev/null; then
+    MOUNTED=true
+    ok "mount_smbfs 성공"
+elif /sbin/mount -t smbfs "$MOUNT_URL" "$TM_MOUNT" 2>/dev/null; then
+    MOUNTED=true
+    ok "mount -t smbfs 성공"
+fi
+
+if [[ "$MOUNTED" == false ]]; then
+    # Finder를 통해 연결 시도 후 사용자에게 안내
     open "smb://${TM_HOST}/${TM_SHARE}" 2>/dev/null || true
-    fail "Could not mount SMB share.
-  Manual steps:
-  1. Finder > Go > Connect to Server (Cmd+K)
-  2. Enter: smb://$TM_HOST/$TM_SHARE
-  3. Then re-run: sudo tmutil setdestination -p '$TM_MOUNT'"
+    fail "SMB 마운트 실패. 수동 진행:
+  1. Finder > 이동 > 서버에 연결 (⌘K)
+  2. 입력: smb://${TM_HOST}/${TM_SHARE}
+  3. 연결 후:
+       sudo tmutil setdestination -p '$TM_MOUNT'
+  또는 비밀번호 설정:
+       TM_PASS=비밀번호 sudo bash $0"
 fi
 
-# ── 9. Verify mount
-if ! mount | grep -q "$TM_MOUNT"; then
-    fail "Mount succeeded but $TM_MOUNT not visible in mount table"
+# 마운트 확인
+if ! mount | grep -q " ${TM_MOUNT} "; then
+    fail "마운트 테이블에서 $TM_MOUNT 를 찾을 수 없습니다"
 fi
-ok "Share is mounted at $TM_MOUNT"
+ok "마운트 확인: $TM_MOUNT"
 
-# ── 10. Register with Time Machine
-log "Registering $TM_MOUNT as Time Machine destination ..."
+# ═══════════════════════════════════════════════════════════
+# 6. Time Machine 등록
+# ═══════════════════════════════════════════════════════════
+step "Time Machine 대상 등록"
+
+TM_SET=false
 if tmutil setdestination -p "$TM_MOUNT" 2>/dev/null; then
-    ok "Time Machine destination set"
+    TM_SET=true
 elif tmutil setdestination "$TM_MOUNT" 2>/dev/null; then
-    ok "Time Machine destination set (legacy flag)"
-else
-    warn "tmutil setdestination failed — you may need to re-add manually:"
-    warn "  System Settings > General > Time Machine > Add Backup Disk"
+    TM_SET=true
 fi
 
-# ── 11. Show current destinations
-log "Current Time Machine destinations:"
-tmutil destinationinfo 2>/dev/null | grep -E "^(Name|URL|Mount)" | sed 's/^/  /'
+if [[ "$TM_SET" == true ]]; then
+    ok "Time Machine 대상 설정 완료: $TM_MOUNT"
+else
+    warn "tmutil setdestination 실패"
+    warn "수동: 시스템 설정 > 일반 > Time Machine > 백업 디스크 추가"
+    warn "     마운트된 $TM_MOUNT 를 선택"
+fi
+
+# ═══════════════════════════════════════════════════════════
+# 7. 결과 요약
+# ═══════════════════════════════════════════════════════════
+echo ""
+log "현재 Time Machine 대상:"
+tmutil destinationinfo 2>/dev/null \
+    | grep -E "^(Name|URL|Mount Point|Kind)" \
+    | sed 's/^/  /' \
+    || warn "tmutil destinationinfo 읽기 실패"
 
 echo ""
-ok "Setup complete. To start a backup now:"
-echo "   tmutil startbackup"
+ok "설정 완료."
 echo ""
-log "Tip: to make this persistent across reboots, add a launchd plist that"
-log "     mounts the share on network-up. See mac/launchd/ for examples."
+echo "  지금 백업 시작:  tmutil startbackup"
+echo ""
+log "[재부팅 후 자동 복구] launchd 데몬 설치:"
+log "  sudo cp mac/launchd/com.keepsake.timemachine-mount.plist /Library/LaunchDaemons/"
+log "  sudo launchctl load /Library/LaunchDaemons/com.keepsake.timemachine-mount.plist"
