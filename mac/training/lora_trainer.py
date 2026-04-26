@@ -13,6 +13,33 @@ sys.path.insert(0, str(MAC_ROOT.parent))
 from shared.ethics_filter import EthicsFilter
 
 
+class _LazyTokenDataset:
+    """Tokenizes one text at a time — avoids bulk tensor allocation that OOMs on MPS."""
+
+    def __init__(self, texts: list[str], tokenizer, max_length: int = 512):
+        self.texts = texts
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+
+    def __len__(self):
+        return len(self.texts)
+
+    def __getitem__(self, idx):
+        enc = self.tokenizer(
+            self.texts[idx],
+            truncation=True,
+            max_length=self.max_length,
+            padding="max_length",
+            return_tensors="pt",
+        )
+        input_ids = enc["input_ids"].squeeze(0)
+        return {
+            "input_ids": input_ids,
+            "attention_mask": enc["attention_mask"].squeeze(0),
+            "labels": input_ids.clone(),
+        }
+
+
 class LensLoRATrainer:
     """
     LoRA fine-tuning for one lens on Mac mini M4 (MPS device).
@@ -75,7 +102,7 @@ class LensLoRATrainer:
         Returns the saved adapter path, or None on failure.
         """
         from transformers import Trainer, TrainingArguments, DataCollatorForLanguageModeling
-        from datasets import Dataset
+        from torch.utils.data import Dataset as TorchDataset
 
         if self.model is None:
             raise RuntimeError("Call load_model() before train_session()")
@@ -86,32 +113,23 @@ class LensLoRATrainer:
             return None
 
         lc = self.lens_config["learning"]
-        encodings = self.tokenizer(
-            texts,
-            truncation=True,
-            max_length=1024,
-            padding="max_length",
-            return_tensors="pt",
-        )
-        dataset = Dataset.from_dict({
-            "input_ids": encodings["input_ids"],
-            "attention_mask": encodings["attention_mask"],
-            "labels": encodings["input_ids"].clone(),
-        })
+        dataset = _LazyTokenDataset(texts, self.tokenizer, max_length=512)
 
         output_dir = self.adapter_dir / checkpoint_tag
         training_args = TrainingArguments(
             output_dir=str(output_dir),
             num_train_epochs=lc["max_epochs_per_session"],
-            per_device_train_batch_size=lc["batch_size"],
+            per_device_train_batch_size=1,       # keep memory low on MPS
             gradient_accumulation_steps=lc["gradient_accumulation"],
             learning_rate=lc["learning_rate"],
             save_strategy="epoch",
-            logging_steps=10,
+            logging_steps=5,
             report_to="none",
-            # MPS is auto-detected by transformers 5.x — no device flag needed
-            bf16=False,  # Trainer bf16 flag is for CUDA; MPS bf16 set via model dtype
+            bf16=False,
             dataloader_pin_memory=False,
+            dataloader_num_workers=0,            # no forked workers — prevents OOM on macOS
+            gradient_checkpointing=True,         # trade compute for memory
+            optim="adamw_torch",
         )
 
         data_collator = DataCollatorForLanguageModeling(
