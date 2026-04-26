@@ -19,8 +19,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def check(port):
+    # parallax (8765) loads ML models and responds slowly
+    timeout = 5 if port == 8765 else 2
     try:
-        with urlopen(f"http://localhost:{port}/", timeout=2) as r:
+        with urlopen(f"http://localhost:{port}/", timeout=timeout) as r:
             return r.status
     except Exception:
         return 0
