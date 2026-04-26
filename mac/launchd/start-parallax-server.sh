@@ -19,6 +19,20 @@ if [ ! -x "$PYTHON" ]; then
     exit 1
 fi
 
+# Load environment variables (API keys etc) — launchd doesn't inherit shell env
+for ENV_FILE in \
+    "$PROJECT_DIR/.env" \
+    "$HOME/keepsake-migration/mac/.env" \
+    "$HOME/.env"; do
+    if [ -f "$ENV_FILE" ]; then
+        set -a
+        source "$ENV_FILE"
+        set +a
+        echo "Loaded env: $ENV_FILE"
+        break
+    fi
+done
+
 # Kill any previous instance on this port
 lsof -ti:"$PORT" | xargs kill -9 2>/dev/null || true
 sleep 1
