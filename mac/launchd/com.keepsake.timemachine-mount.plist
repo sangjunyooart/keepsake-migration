@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.keepsake.timemachine-mount.plist
+  Remounts the Time Machine SMB share on boot / network-up and
+  re-registers it with tmutil.
+
+  Install:
+    sudo cp com.keepsake.timemachine-mount.plist /Library/LaunchDaemons/
+    sudo launchctl load /Library/LaunchDaemons/com.keepsake.timemachine-mount.plist
+
+  Edit TM_HOST / TM_SHARE / TM_MOUNT below to match your setup.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.keepsake.timemachine-mount</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <!-- Absolute path to the setup script -->
+        <string>/usr/local/lib/keepsake/setup_timemachine.sh</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>TM_HOST</key>
+        <string>169.254.72.157</string>
+        <key>TM_SHARE</key>
+        <string>TimeMachine</string>
+        <key>TM_USER</key>
+        <string>guest</string>
+        <key>TM_MOUNT</key>
+        <string>/Volumes/TimeMachine</string>
+    </dict>
+
+    <!-- Run 60 s after boot to let networking settle -->
+    <key>StartInterval</key>
+    <integer>60</integer>
+
+    <!-- Also fire whenever the network interface comes up -->
+    <key>WatchPaths</key>
+    <array>
+        <string>/var/run/resolv.conf</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/var/log/keepsake-timemachine-mount.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/keepsake-timemachine-mount.log</string>
+
+    <!-- Retry on failure, up to 3 times -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+</dict>
+</plist>
