@@ -62,6 +62,16 @@ for PLIST in "${PLISTS[@]}"; do
 done
 
 echo ""
+
+# Ensure ollama auto-starts on login (needed by keepsake-drift local mode)
+if command -v ollama &>/dev/null; then
+    brew services start ollama 2>/dev/null || true
+    echo "Ollama: auto-start enabled (brew services)"
+else
+    echo "WARNING: ollama not found — install with: brew install ollama"
+fi
+
+echo ""
 echo "=== Done. All services will auto-start on every reboot. ==="
 echo "To check status: launchctl list | grep keepsake"
 echo "Logs: $LOG_DIR/"
