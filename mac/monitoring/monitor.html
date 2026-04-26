@@ -92,17 +92,26 @@ html,body{background:#0c0c0c;color:#ccc;
 #d-close{background:none;border:none;color:#2a2a2a;cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 8px}
 #d-close:hover{color:#666}
 
-#d-topics{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
-.topic-chip{font-size:9px;padding:2px 7px;background:#111;border:1px solid #1e1e1e;
-  border-radius:10px;color:#333;white-space:nowrap}
-
-#d-stats{display:flex;gap:0;border-top:1px solid #181818;padding-top:10px}
+#d-stats{display:flex;gap:0;margin-bottom:12px}
 .ds{padding:0 18px;border-right:1px solid #181818;display:flex;flex-direction:column;gap:3px}
 .ds:first-child{padding-left:0}
 .ds:last-child{border-right:none}
 .ds-lbl{font-size:8px;color:#252525;text-transform:uppercase;letter-spacing:.06em}
 .ds-val{font-size:12px;font-weight:700;color:#666}
 .ds-val.good{color:#3fb950}.ds-val.warn{color:#e3b341}.ds-val.bad{color:#f85149}
+
+#d-body{display:grid;grid-template-columns:1fr 220px;gap:12px;border-top:1px solid #181818;padding-top:10px}
+.d-section-hdr{font-size:8px;color:#252525;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+#d-sources{max-height:160px;overflow-y:auto}
+.src-row{display:flex;justify-content:space-between;align-items:baseline;
+  padding:3px 0;border-bottom:1px solid #111;gap:8px}
+.src-title{font-size:10px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src-meta{font-size:8px;color:#2a2a2a;flex-shrink:0}
+#d-history{display:flex;flex-direction:column;gap:4px}
+.hist-row{display:flex;justify-content:space-between;align-items:center;
+  background:#0d0d0d;border:1px solid #181818;border-radius:3px;padding:4px 7px}
+.hist-ckpt{font-size:9px;color:#444}
+.hist-time{font-size:8px;color:#2a2a2a}
 
 #footer{text-align:center;padding:4px 0 10px;font-size:9px;color:#1a1a1a}
 </style>
@@ -135,12 +144,21 @@ html,body{background:#0c0c0c;color:#ccc;
     </div>
     <button id="d-close" onclick="closeDetail()">✕</button>
   </div>
-  <div id="d-topics"></div>
   <div id="d-stats">
     <div class="ds"><div class="ds-lbl">corpus</div><div class="ds-val" id="dd-chunks">—</div></div>
     <div class="ds"><div class="ds-lbl">last trained</div><div class="ds-val" id="dd-trained">—</div></div>
     <div class="ds"><div class="ds-lbl">adapter</div><div class="ds-val" id="dd-adapter">—</div></div>
     <div class="ds"><div class="ds-lbl">training</div><div class="ds-val" id="dd-status">—</div></div>
+  </div>
+  <div id="d-body">
+    <div>
+      <div class="d-section-hdr">ingested sources</div>
+      <div id="d-sources"></div>
+    </div>
+    <div>
+      <div class="d-section-hdr">training sessions</div>
+      <div id="d-history"></div>
+    </div>
   </div>
 </div>
 
@@ -153,49 +171,12 @@ const LENS_NAMES = [
 ];
 
 const LENS_META = {
-  human_time: {
-    pi: 'PI 1', host: 'pi1.local',
-    desc: 'Personal memory, daily life, and generational experience across Tokyo and New York.',
-    topics: ['Tokyo daily life 1980s–90s','Showa/Heisei era youth','Setagaya neighborhood','New York immigrant life 2000s',
-             'Japanese oral history','Korean-Japanese diaspora','New York artist community','Tokyo commuter culture',
-             'Japan domestic life 1990s','Tokyo university life 2000s'],
-  },
-  infrastructure_time: {
-    pi: 'PI 2', host: 'pi2.local',
-    desc: 'Administrative systems, immigration bureaucracy, and legal residency in Japan and the US.',
-    topics: ['Japan immigration policy 2000s','US O-1 artist visa','Japan zairyu card system','New York immigration history',
-             'Alien registration process','US immigration reform','Japan visa for cultural activities',
-             'NY immigrant services','Japan foreign residency law','South Korea immigration'],
-  },
-  environmental_time: {
-    pi: 'PI 3', host: 'pi3.local',
-    desc: 'Climate, ecology, and the natural world across Tokyo, New York, and the Pacific coast.',
-    topics: ['Tokyo climate & seasons','Japan 1990s natural disasters','Setagaya parks & rivers',
-             'New York weather history','Kanto plain ecology','Tokyo urban heat island',
-             'Hudson River ecology','Japan Pacific coast climate','Seoul seasonal history','Hanshin earthquake 1995'],
-  },
-  digital_time: {
-    pi: 'PI 4', host: 'pi4.local',
-    desc: 'Internet culture, technology adoption, and digital communities in Japan and the US.',
-    topics: ['Japan internet 1990s–2000s','2channel bulletin board','Tokyo mobile phones 2000s',
-             'New York digital media art','Japan broadband expansion','Japanese video game culture',
-             'New York early social media','Japan i-mode mobile internet','South Korea broadband','New media art'],
-  },
-  liminal_time: {
-    pi: 'PI 5', host: 'pi5.local',
-    desc: 'Migration, diaspora identity, and the experience of crossing borders between Japan and the US.',
-    topics: ['Japanese diaspora New York','Japan emigration artists abroad','Cultural identity Japan/America',
-             'Transnational artist experience','Border crossing narrative','Kikokushijo returnee experience',
-             'New York artist visa story','Liminality & migration theory','Japan cultural exchange US','Diaspora belonging'],
-  },
-  more_than_human_time: {
-    pi: 'PI 6', host: 'pi6.local',
-    desc: 'Urban ecology, geology, and multispecies coexistence in Tokyo and New York.',
-    topics: ['Tokyo urban wildlife & birds','Japan geological history','Tama River ecosystem',
-             'New York Central Park ecology','Japan endemic biodiversity','Tokyo rivers & waterways',
-             'Japan satoyama landscape','New York harbor ecology','Japan phenology cherry blossom',
-             'Multispecies urban cohabitation'],
-  },
+  human_time:           { pi:'PI 1', desc:'Personal memory, daily life, and generational experience across Tokyo and New York.' },
+  infrastructure_time:  { pi:'PI 2', desc:'Administrative systems, immigration bureaucracy, and legal residency in Japan and the US.' },
+  environmental_time:   { pi:'PI 3', desc:'Climate, ecology, and the natural world across Tokyo, New York, and the Pacific coast.' },
+  digital_time:         { pi:'PI 4', desc:'Internet culture, technology adoption, and digital communities in Japan and the US.' },
+  liminal_time:         { pi:'PI 5', desc:'Migration, diaspora identity, and the experience of crossing borders between Japan and the US.' },
+  more_than_human_time: { pi:'PI 6', desc:'Urban ecology, geology, and multispecies coexistence in Tokyo and New York.' },
 };
 
 let _lastData   = {};
@@ -272,29 +253,64 @@ function closeDetail() {
   document.getElementById('detail').classList.remove('visible');
 }
 
-function showDetail(lens) {
+async function showDetail(lens) {
   const meta = LENS_META[lens];
   const ld   = _lastData[lens] || {};
 
   document.getElementById('d-name').textContent = lens.replace(/_/g,' ');
   document.getElementById('d-desc').textContent = meta.desc;
 
-  const topicsEl = document.getElementById('d-topics');
-  topicsEl.innerHTML = meta.topics.map(t => `<span class="topic-chip">${t}</span>`).join('');
-
+  // live stats
   const chunks = ld.corpus_chunks ?? 0;
   const chunksEl = document.getElementById('dd-chunks');
   chunksEl.textContent = chunks ? `${chunks} chunks` : '0 chunks';
   chunksEl.className   = `ds-val ${chunkCls(chunks)}`;
-
-  document.getElementById('dd-trained').textContent  = reltime(ld.last_training_at);
-  document.getElementById('dd-adapter').textContent  = ld.adapter_version || '—';
-
+  document.getElementById('dd-trained').textContent = reltime(ld.last_training_at);
+  document.getElementById('dd-adapter').textContent = ld.adapter_version || '—';
   const stEl = document.getElementById('dd-status');
   stEl.textContent = ld.training_enabled !== false ? 'enabled' : 'paused';
   stEl.className   = `ds-val ${ld.training_enabled !== false ? 'good' : 'warn'}`;
 
   document.getElementById('detail').classList.add('visible');
+
+  // fetch real corpus + history
+  const srcEl  = document.getElementById('d-sources');
+  const histEl = document.getElementById('d-history');
+  srcEl.innerHTML  = '<span style="color:#252525">loading…</span>';
+  histEl.innerHTML = '<span style="color:#252525">loading…</span>';
+
+  try {
+    const r = await fetch(`/api/lens-detail/${lens}`);
+    const d = await r.json();
+
+    if (d.sources.length === 0) {
+      srcEl.innerHTML = '<span style="color:#252525">no corpus yet — run seed_corpus.py</span>';
+    } else {
+      srcEl.innerHTML = d.sources.map(s => {
+        const label = s.title || s.source.replace('wikipedia:','');
+        const src   = s.source.startsWith('wikipedia:') ? 'wikipedia' : s.source;
+        const age   = reltime(s.saved_at);
+        return `<div class="src-row">
+          <span class="src-title">${label}</span>
+          <span class="src-meta">${src} · ${age}</span>
+        </div>`;
+      }).join('');
+    }
+
+    if (d.history.length === 0) {
+      histEl.innerHTML = '<span style="color:#252525">no training sessions yet</span>';
+    } else {
+      histEl.innerHTML = d.history.map(h =>
+        `<div class="hist-row">
+          <span class="hist-ckpt">${h.checkpoint}</span>
+          <span class="hist-time">${reltime(h.created_at)}</span>
+        </div>`
+      ).join('');
+    }
+  } catch {
+    srcEl.innerHTML  = '<span style="color:#333">error loading detail</span>';
+    histEl.innerHTML = '';
+  }
 }
 
 // ── data refresh ──

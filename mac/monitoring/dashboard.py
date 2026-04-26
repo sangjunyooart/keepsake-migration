@@ -119,6 +119,45 @@ def training_status():
     return {"mac": mac_stats, "lenses": lenses}
 
 
+def lens_detail(lens: str) -> dict:
+    raw_dir     = os.path.join(MAC_ROOT, "corpus", "raw", lens)
+    adapter_dir = os.path.join(MAC_ROOT, "adapters", lens)
+
+    # Corpus sources — actual ingested JSON files, newest first, up to 40
+    sources = []
+    if os.path.isdir(raw_dir):
+        files = sorted(glob.glob(os.path.join(raw_dir, "*.json")),
+                       key=os.path.getmtime, reverse=True)[:40]
+        for f in files:
+            try:
+                item = json.loads(open(f).read())
+                sources.append({
+                    "title":    item.get("title", ""),
+                    "source":   item.get("source", ""),
+                    "saved_at": item.get("saved_at", ""),
+                })
+            except Exception:
+                pass
+
+    # Training history — one entry per checkpoint with version.json
+    history = []
+    if os.path.isdir(adapter_dir):
+        for ckpt in sorted(glob.glob(os.path.join(adapter_dir, "checkpoint_*"))):
+            ver = os.path.join(ckpt, "version.json")
+            if os.path.exists(ver):
+                try:
+                    d = json.loads(open(ver).read())
+                    history.append({
+                        "checkpoint": d.get("checkpoint", os.path.basename(ckpt)),
+                        "created_at": d.get("created_at", ""),
+                    })
+                except Exception:
+                    pass
+
+    history.sort(key=lambda x: x["created_at"], reverse=True)
+    return {"lens": lens, "sources": sources, "history": history}
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args): pass
 
@@ -143,6 +182,13 @@ class Handler(BaseHTTPRequestHandler):
         elif path in ("/", "/index.html"):
             with open(os.path.join(HERE, "index.html"), "rb") as f:
                 self.reply(200, "text/html; charset=utf-8", f.read())
+
+        elif path.startswith("/api/lens-detail/"):
+            lens = path.split("/")[-1]
+            if lens in LENS_NAMES:
+                self.reply(200, "application/json", json.dumps(lens_detail(lens)))
+            else:
+                self.reply(404, "text/plain", "Unknown lens")
 
         elif path in ("/monitor", "/monitor/"):
             with open(os.path.join(HERE, "monitor.html"), "rb") as f:
