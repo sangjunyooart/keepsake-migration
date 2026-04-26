@@ -187,13 +187,10 @@ function switchTo(id) {
   document.getElementById(`tab-${id}`).classList.add('active');
   ov.style.display     = 'none';
   viewer.style.display = 'block';
-  const proxyUrl = svc.local
-    ? `/monitor`
+  const url = svc.local
+    ? `http://localhost:8080/monitor`
     : `http://localhost:${svc.port}${svc.path}`;
-  if (viewer.dataset.current !== proxyUrl) {
-    viewer.src = proxyUrl;
-    viewer.dataset.current = proxyUrl;
-  }
+  viewer.src = url;
 }
 
 // health poll
