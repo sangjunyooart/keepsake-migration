@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Training Monitor — Keepsake</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:#0c0c0c;color:#ccc;
+  font-family:'SF Mono',Monaco,Menlo,monospace;font-size:12px;overflow:auto}
+
+#mac-row{
+  display:flex;gap:0;border-bottom:1px solid #1a1a1a;
+  background:#0e0e0e;padding:8px 16px;align-items:center;font-size:10px;
+}
+.mac-stat{padding:0 14px;border-right:1px solid #1a1a1a;display:flex;gap:6px;align-items:center;color:#333}
+.mac-stat:first-child{padding-left:0}
+.mac-stat:last-child{border-right:none}
+.mac-val{font-weight:700;color:#666}
+#last-refresh{margin-left:auto;font-size:9px;color:#252525}
+
+#grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:8px;padding:10px;
+}
+
+.lens-card{
+  background:#111;border:1px solid #1e1e1e;border-radius:6px;
+  padding:11px 13px;display:flex;flex-direction:column;gap:7px;
+}
+.lens-card.training-off{border-color:#2a1515;opacity:.65}
+
+.card-head{display:flex;justify-content:space-between;align-items:flex-start}
+.lens-name{font-size:10px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.08em}
+.badges{display:flex;gap:4px}
+.badge{font-size:8px;padding:1px 5px;border-radius:8px;font-weight:600}
+.badge.on   {background:#0c2010;color:#3fb950;border:1px solid #1a3020}
+.badge.off  {background:#280808;color:#f85149;border:1px solid #3a1818}
+.badge.pi-ok{background:#081828;color:#58a6ff;border:1px solid #1a2a3a}
+.badge.pi-no{background:#181818;color:#333;border:1px solid #222}
+
+.metrics{display:flex;flex-direction:column;gap:3px}
+.mrow{display:flex;align-items:baseline;gap:6px}
+.lbl{font-size:9px;color:#2a2a2a;width:84px;flex-shrink:0;text-transform:uppercase;letter-spacing:.04em}
+.val{font-size:11px;font-weight:600}
+.val.good{color:#3fb950}
+.val.warn{color:#e3b341}
+.val.bad {color:#f85149}
+.val.dim {color:#333}
+.val.norm{color:#666}
+
+.pi-section{border-top:1px solid #181818;padding-top:6px;display:flex;gap:0}
+.pi-cell{font-size:9px;color:#2a2a2a;padding:0 9px;border-right:1px solid #181818;display:flex;flex-direction:column;gap:1px}
+.pi-cell:first-child{padding-left:0}
+.pi-cell:last-child{border-right:none}
+.pi-cell .pv{font-size:10px;font-weight:700;color:#555}
+.pv.hot{color:#e3b341}
+.pv.crit{color:#f85149}
+.pv.ok{color:#3fb950}
+
+#footer{text-align:center;padding:6px 0 10px;font-size:9px;color:#1e1e1e}
+</style>
+</head>
+<body>
+
+<div id="mac-row">
+  <div class="mac-stat">CPU <span class="mac-val" id="m-cpu">—</span></div>
+  <div class="mac-stat">RAM <span class="mac-val" id="m-ram">—</span></div>
+  <div class="mac-stat">DISK <span class="mac-val" id="m-disk">—</span></div>
+  <span id="last-refresh">—</span>
+</div>
+
+<div id="grid"></div>
+<div id="footer">training monitor · auto-refresh 30s</div>
+
+<script>
+const LENS_NAMES = [
+  'human_time','infrastructure_time','environmental_time',
+  'digital_time','liminal_time','more_than_human_time',
+];
+
+function reltime(iso) {
+  if (!iso) return 'never';
+  const s = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (s < 60)    return `${s}s ago`;
+  if (s < 3600)  return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
+}
+
+function chunkCls(n) {
+  if (!n || n < 10) return 'bad';
+  if (n < 50)       return 'warn';
+  return 'good';
+}
+
+function tempCls(t) {
+  if (!t)    return '';
+  if (t > 75) return 'crit';
+  if (t > 65) return 'hot';
+  return 'ok';
+}
+
+function fmt(v, unit) { return v != null ? `${Number(v).toFixed(unit==='°C'?1:0)}${unit}` : '—'; }
+
+function buildCards() {
+  const grid = document.getElementById('grid');
+  LENS_NAMES.forEach(lens => {
+    const d = document.createElement('div');
+    d.className = 'lens-card';
+    d.id = `card-${lens}`;
+    d.innerHTML = `
+      <div class="card-head">
+        <div class="lens-name">${lens.replace(/_/g,' ')}</div>
+        <div class="badges">
+          <span class="badge" id="bt-${lens}">TRAIN</span>
+          <span class="badge" id="bp-${lens}">PI</span>
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="mrow"><span class="lbl">corpus</span><span class="val" id="vc-${lens}">—</span></div>
+        <div class="mrow"><span class="lbl">last train</span><span class="val norm" id="vt-${lens}">—</span></div>
+        <div class="mrow"><span class="lbl">adapter</span><span class="val norm" id="va-${lens}">—</span></div>
+      </div>
+      <div class="pi-section" id="pi-${lens}" style="display:none">
+        <div class="pi-cell"><div style="font-size:8px;color:#252525">TEMP</div><div class="pv" id="pt-${lens}">—</div></div>
+        <div class="pi-cell"><div style="font-size:8px;color:#252525">CPU</div><div class="pv" id="pc-${lens}">—</div></div>
+        <div class="pi-cell"><div style="font-size:8px;color:#252525">RAM</div><div class="pv" id="pr-${lens}">—</div></div>
+        <div class="pi-cell"><div style="font-size:8px;color:#252525">MODEL</div><div class="pv" id="pm-${lens}">—</div></div>
+      </div>`;
+    grid.appendChild(d);
+  });
+}
+
+async function refresh() {
+  let data;
+  try {
+    const r = await fetch('/api/training-status');
+    data = await r.json();
+  } catch { return; }
+
+  const mac = data.mac || {};
+  document.getElementById('m-cpu').textContent  = mac.cpu_pct  != null ? `${mac.cpu_pct.toFixed(0)}%`  : '—';
+  document.getElementById('m-ram').textContent  = mac.ram_pct  != null ? `${mac.ram_pct.toFixed(0)}%`  : '—';
+  document.getElementById('m-disk').textContent = mac.disk_pct != null ? `${mac.disk_pct.toFixed(0)}%` : '—';
+
+  const now = new Date();
+  document.getElementById('last-refresh').textContent =
+    `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+  const lenses = data.lenses || {};
+  LENS_NAMES.forEach(lens => {
+    const ld = lenses[lens] || {};
+
+    document.getElementById(`card-${lens}`).className =
+      'lens-card' + (ld.training_enabled === false ? ' training-off' : '');
+
+    const bt = document.getElementById(`bt-${lens}`);
+    bt.className   = `badge ${ld.training_enabled !== false ? 'on' : 'off'}`;
+    bt.textContent = ld.training_enabled !== false ? 'TRAIN' : 'PAUSED';
+
+    const bp = document.getElementById(`bp-${lens}`);
+    bp.className   = `badge ${ld.pi_online ? 'pi-ok' : 'pi-no'}`;
+    bp.textContent = ld.pi_online ? 'PI ●' : 'PI ○';
+
+    const vc = document.getElementById(`vc-${lens}`);
+    vc.className   = `val ${chunkCls(ld.corpus_chunks)}`;
+    vc.textContent = ld.corpus_chunks != null ? `${ld.corpus_chunks} chunks` : '—';
+
+    document.getElementById(`vt-${lens}`).textContent = reltime(ld.last_training_at);
+    document.getElementById(`va-${lens}`).textContent = ld.adapter_version || '—';
+
+    const piSec = document.getElementById(`pi-${lens}`);
+    if (ld.pi_online) {
+      piSec.style.display = 'flex';
+      const tc = tempCls(ld.pi_temp);
+      const ptEl = document.getElementById(`pt-${lens}`);
+      ptEl.textContent = fmt(ld.pi_temp, '°C');
+      ptEl.className   = `pv ${tc}`;
+      document.getElementById(`pc-${lens}`).textContent = fmt(ld.pi_cpu_pct, '%');
+      document.getElementById(`pr-${lens}`).textContent = fmt(ld.pi_ram_pct, '%');
+      document.getElementById(`pm-${lens}`).textContent = ld.pi_model_loaded ? '✓' : '…';
+    } else {
+      piSec.style.display = 'none';
+    }
+  });
+}
+
+buildCards();
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>
