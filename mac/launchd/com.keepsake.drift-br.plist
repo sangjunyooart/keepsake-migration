@@ -13,9 +13,6 @@
         <string>8003</string>
     </array>
 
-    <key>WorkingDirectory</key>
-    <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift_br</string>
-
     <key>RunAtLoad</key>
     <true/>
 
@@ -23,10 +20,10 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift_br/server.log</string>
+    <string>/Users/YOUR_USERNAME/keepsake-migration/mac/logs/drift-br.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift_br/server.err</string>
+    <string>/Users/YOUR_USERNAME/keepsake-migration/mac/logs/drift-br.err</string>
 
     <key>EnvironmentVariables</key>
     <dict>
