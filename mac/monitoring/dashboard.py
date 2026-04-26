@@ -18,11 +18,13 @@ SERVICES = [
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+STATUS_PATH = {8765: "/admin"}  # ports that don't serve at root
+
 def check(port):
-    # parallax (8765) loads ML models and responds slowly
+    path    = STATUS_PATH.get(port, "/")
     timeout = 5 if port == 8765 else 2
     try:
-        with urlopen(f"http://localhost:{port}/", timeout=timeout) as r:
+        with urlopen(f"http://localhost:{port}{path}", timeout=timeout) as r:
             return r.status
     except Exception:
         return 0
