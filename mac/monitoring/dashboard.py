@@ -130,10 +130,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
-    def do_GET(self):  self.handle("GET")
-    def do_POST(self): self.handle("POST")
+    def do_GET(self):  self.dispatch("GET")
+    def do_POST(self): self.dispatch("POST")
 
-    def handle(self, method):
+    def dispatch(self, method):
         raw  = self.path
         sep  = raw.find("?")
         path = raw if sep < 0 else raw[:sep]
