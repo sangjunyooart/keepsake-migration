@@ -153,6 +153,8 @@ html,body{background:#0c0c0c;color:#ccc;
   </div>
   <div id="d-stats">
     <div class="ds"><div class="ds-lbl">corpus</div><div class="ds-val" id="dd-chunks">—</div></div>
+    <div class="ds"><div class="ds-lbl">raw size</div><div class="ds-val" id="dd-rawsz">—</div></div>
+    <div class="ds"><div class="ds-lbl">processed</div><div class="ds-val" id="dd-prosz">—</div></div>
     <div class="ds"><div class="ds-lbl">last trained</div><div class="ds-val" id="dd-trained">—</div></div>
     <div class="ds"><div class="ds-lbl">adapter</div><div class="ds-val" id="dd-adapter">—</div></div>
     <div class="ds"><div class="ds-lbl">training</div><div class="ds-val" id="dd-status">—</div></div>
@@ -202,6 +204,14 @@ function chunkCls(n) { return (!n||n<10)?'bad':n<50?'warn':'good'; }
 function tempCls(t)  { return !t?'':t>75?'crit':t>65?'hot':'ok'; }
 function fmt(v,u)    { return v!=null?`${Number(v).toFixed(u==='°C'?1:0)}${u}`:'—'; }
 
+function fmtBytes(b) {
+  if (!b) return '0 B';
+  if (b < 1024)       return `${b} B`;
+  if (b < 1048576)    return `${(b/1024).toFixed(1)} KB`;
+  if (b < 1073741824) return `${(b/1048576).toFixed(1)} MB`;
+  return `${(b/1073741824).toFixed(2)} GB`;
+}
+
 // ── build DOM ──
 function buildAll() {
   const tc = document.getElementById('training-col');
@@ -219,7 +229,7 @@ function buildAll() {
         <span class="badge" id="bt-${lens}">TRAIN</span>
       </div>
       <div class="t-metrics">
-        <div class="mrow"><span class="lbl">corpus</span><span class="val" id="vc-${lens}">—</span></div>
+        <div class="mrow"><span class="lbl">corpus</span><span class="val" id="vc-${lens}">—</span><span class="val norm" style="font-size:9px;margin-left:4px" id="vcsz-${lens}"></span></div>
         <div class="mrow"><span class="lbl">last train</span><span class="val norm" id="vt-${lens}">—</span></div>
         <div class="mrow"><span class="lbl">adapter</span><span class="val norm" id="va-${lens}">—</span></div>
       </div>`;
@@ -272,6 +282,8 @@ async function showDetail(lens) {
   const chunksEl = document.getElementById('dd-chunks');
   chunksEl.textContent = chunks ? `${chunks} chunks` : '0 chunks';
   chunksEl.className   = `ds-val ${chunkCls(chunks)}`;
+  document.getElementById('dd-rawsz').textContent   = '—';
+  document.getElementById('dd-prosz').textContent   = '—';
   document.getElementById('dd-trained').textContent = reltime(ld.last_training_at);
   document.getElementById('dd-adapter').textContent = ld.adapter_version || '—';
   const stEl = document.getElementById('dd-status');
@@ -289,6 +301,8 @@ async function showDetail(lens) {
   try {
     const r = await fetch(`/api/lens-detail/${lens}`);
     const d = await r.json();
+    document.getElementById('dd-rawsz').textContent  = fmtBytes(d.corpus_raw_bytes);
+    document.getElementById('dd-prosz').textContent  = fmtBytes(d.corpus_processed_bytes);
 
     if (d.sources.length === 0) {
       srcEl.innerHTML = '<span style="color:#252525;font-size:10px">no corpus yet — run seed_corpus.py</span>';
@@ -316,7 +330,10 @@ async function showDetail(lens) {
       histEl.innerHTML = d.history.map(h =>
         `<div class="hist-row">
           <span class="hist-ckpt">${h.checkpoint}</span>
-          <span class="hist-time">${reltime(h.created_at)}</span>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+            <span class="hist-time">${reltime(h.created_at)}</span>
+            ${h.size_bytes ? `<span style="font-size:7px;color:#252525">${fmtBytes(h.size_bytes)}</span>` : ''}
+          </div>
         </div>`
       ).join('');
     }
@@ -371,6 +388,7 @@ async function refresh() {
     const vc = document.getElementById(`vc-${lens}`);
     vc.className   = `val ${chunkCls(ld.corpus_chunks)}`;
     vc.textContent = ld.corpus_chunks != null ? `${ld.corpus_chunks} chunks` : '—';
+    document.getElementById(`vcsz-${lens}`).textContent = ld.corpus_bytes ? fmtBytes(ld.corpus_bytes) : '';
     document.getElementById(`vt-${lens}`).textContent = reltime(ld.last_training_at);
     document.getElementById(`va-${lens}`).textContent = ld.adapter_version || '—';
 

@@ -59,6 +59,15 @@ def status_all():
     return results
 
 
+def _dir_bytes(path: str) -> int:
+    total = 0
+    if os.path.isdir(path):
+        for f in glob.glob(os.path.join(path, "**", "*"), recursive=True):
+            if os.path.isfile(f):
+                total += os.path.getsize(f)
+    return total
+
+
 def training_status():
     mac_stats = {}
     try:
@@ -103,8 +112,14 @@ def training_status():
             pass
 
         sys_info = pi_data.get("system", {})
+        corpus_bytes = (
+            _dir_bytes(os.path.join(MAC_ROOT, "corpus", "raw", lens)) +
+            _dir_bytes(os.path.join(MAC_ROOT, "corpus", "processed", lens))
+        )
+
         lenses[lens] = {
             "corpus_chunks":    chunk_count,
+            "corpus_bytes":     corpus_bytes,
             "training_enabled": training_enabled,
             "last_training_at": last_training_at,
             "adapter_version":  adapter_version,
@@ -162,8 +177,23 @@ def lens_detail(lens: str) -> dict:
                 except Exception:
                     pass
 
+    # Adapter checkpoint sizes
+    for entry in history:
+        ckpt_path = os.path.join(adapter_dir, entry["checkpoint"])
+        entry["size_bytes"] = _dir_bytes(ckpt_path)
+
     history.sort(key=lambda x: x["created_at"], reverse=True)
-    return {"lens": lens, "sources": sources, "history": history}
+
+    corpus_raw_bytes       = _dir_bytes(os.path.join(MAC_ROOT, "corpus", "raw",       lens))
+    corpus_processed_bytes = _dir_bytes(os.path.join(MAC_ROOT, "corpus", "processed", lens))
+
+    return {
+        "lens":                   lens,
+        "sources":                sources,
+        "history":                history,
+        "corpus_raw_bytes":       corpus_raw_bytes,
+        "corpus_processed_bytes": corpus_processed_bytes,
+    }
 
 
 class Handler(BaseHTTPRequestHandler):
