@@ -33,18 +33,50 @@ SKIP_COPY_HEADERS = STRIP_RESP_HEADERS | {
 # Injected before any other script in proxied HTML pages.
 # Rewrites absolute-path fetch/XHR so they stay within the proxy.
 INTERCEPT = """<script>
-(function(pfx){
+(function(pfx, port){
+  /* ── fetch ── */
   var F=window.fetch;
   window.fetch=function(u,o){
     if(typeof u==='string'&&u.startsWith('/')&&!u.startsWith('/proxy/'))u=pfx+u;
     return F.call(this,u,o);
   };
+
+  /* ── XHR ── */
   var X=XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open=function(m,u){
     if(typeof u==='string'&&u.startsWith('/')&&!u.startsWith('/proxy/'))u=pfx+u;
     return X.apply(this,arguments);
   };
-})('__PFX__');
+
+  /* ── WebSocket — bypass proxy, connect direct to drift server ── */
+  var _WS=window.WebSocket;
+  window.WebSocket=new Proxy(_WS,{
+    construct(T,args){
+      var u=args[0];
+      if(typeof u==='string'){
+        /* relative path: /ws → ws://localhost:PORT/ws */
+        if(u.startsWith('/'))u='ws://localhost:'+port+u;
+        /* re-routed through 8080 by browser: fix back to real port */
+        else u=u.replace(/^(wss?):\/\/localhost:8080\//,'$1://localhost:'+port+'/');
+      }
+      args[0]=u;
+      return new T(...args);
+    }
+  });
+
+  /* ── EventSource (SSE) — same idea ── */
+  if(window.EventSource){
+    var _ES=window.EventSource;
+    window.EventSource=new Proxy(_ES,{
+      construct(T,args){
+        var u=args[0];
+        if(typeof u==='string'&&u.startsWith('/')&&!u.startsWith('/proxy/'))u=pfx+u;
+        args[0]=u;
+        return new T(...args);
+      }
+    });
+  }
+})('__PFX__', __PORT__);
 </script>"""
 
 
@@ -93,7 +125,7 @@ def inject_proxy(html_bytes, port):
     html = re.sub(r"frame-ancestors\s+[^;\"']*[;\"']", "", html)
 
     # Inject intercept script as first child of <head>
-    script = INTERCEPT.replace("__PFX__", pfx)
+    script = INTERCEPT.replace("__PFX__", pfx).replace("__PORT__", str(port))
     if re.search(r"<head", html, re.I):
         html = re.sub(r"(<head[^>]*>)", r"\1" + script, html, count=1, flags=re.I)
     else:
