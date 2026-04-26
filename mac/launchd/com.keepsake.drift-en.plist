@@ -8,7 +8,9 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift_en/start.sh</string>
+        <string>/Users/YOUR_USERNAME/keepsake-migration/mac/launchd/start-drift-server.sh</string>
+        <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift_en</string>
+        <string>8001</string>
     </array>
 
     <key>WorkingDirectory</key>
@@ -29,7 +31,7 @@
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin</string>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>OPENAI_AUTO_TICK</key>
         <string>false</string>
     </dict>
