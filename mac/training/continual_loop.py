@@ -110,14 +110,19 @@ class ContinualLoop:
 
         # 7. Push to Pi if configured
         if self.system_config["distribution"]["push_after_each_training"]:
-            self._push_to_pi(lens_name, adapter_path, lc.get("pi_target", ""))
+            self._push_to_pi(
+                lens_name, adapter_path,
+                lc.get("pi_target", ""),
+                lc.get("pi_ssh_user", "pi"),
+            )
 
-    def _push_to_pi(self, lens_name: str, adapter_path: Path, pi_hostname: str):
+    def _push_to_pi(self, lens_name: str, adapter_path: Path,
+                    pi_hostname: str, ssh_user: str):
         if not pi_hostname:
             logger.info("No pi_target for %s — skipping push", lens_name)
             return
-        logger.info("Pushing %s adapter to %s", lens_name, pi_hostname)
-        result = self.pusher.push_adapter(lens_name, adapter_path, pi_hostname)
+        logger.info("Pushing %s adapter to %s@%s", lens_name, ssh_user, pi_hostname)
+        result = self.pusher.push_adapter(lens_name, adapter_path, pi_hostname, ssh_user)
         self.version_tracker.record_push(lens_name, pi_hostname, adapter_path, result["success"])
         if result["success"]:
             logger.info("Push to %s succeeded", pi_hostname)

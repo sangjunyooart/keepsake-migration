@@ -14,8 +14,7 @@ system:
   distribution:
     push_method: "rsync"
     push_after_each_training: true
-    pi_ssh_user: "pi"
-    pi_ssh_key_path: "~/.ssh/keepsake_pi_rsa"
+    pi_ssh_key_path: "~/.ssh/keepsake_pi3"   # shared key for all Pis — copy to each Pi
 
   storage:
     corpus_max_size_gb: 20

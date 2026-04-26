@@ -8,6 +8,7 @@ global:
 lenses:
   human_time:
     pi_target: "pi1.local"
+    pi_ssh_user: "pi1"
     lora:
       r: 16
       alpha: 32
@@ -28,6 +29,7 @@ lenses:
 
   infrastructure_time:
     pi_target: "pi2.local"
+    pi_ssh_user: "pi2"
     lora:
       r: 16
       alpha: 32
@@ -48,6 +50,7 @@ lenses:
 
   environmental_time:
     pi_target: "pi3.local"
+    pi_ssh_user: "pi3"
     lora:
       r: 16
       alpha: 32
@@ -68,6 +71,7 @@ lenses:
 
   digital_time:
     pi_target: "pi4.local"
+    pi_ssh_user: "pi4"
     lora:
       r: 16
       alpha: 32
@@ -88,6 +92,7 @@ lenses:
 
   liminal_time:
     pi_target: "pi5.local"
+    pi_ssh_user: "pi5"
     lora:
       r: 16
       alpha: 32
@@ -108,6 +113,7 @@ lenses:
 
   more_than_human_time:
     pi_target: "pi6.local"
+    pi_ssh_user: "pi6"
     lora:
       r: 16
       alpha: 32
