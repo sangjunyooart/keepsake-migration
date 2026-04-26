@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Keepsake Control</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#0c0c0c;color:#ddd;font-family:'SF Mono',Monaco,Menlo,monospace;font-size:13px}
+
+/* ── TOP BAR ── */
+#bar{
+  height:38px;display:flex;align-items:center;gap:1px;
+  padding:0 6px;background:#141414;border-bottom:1px solid #1f1f1f;
+  user-select:none;flex-shrink:0;
+}
+.tab{
+  display:flex;align-items:center;gap:5px;
+  padding:3px 11px;border-radius:5px;cursor:pointer;
+  font-size:11px;color:#666;transition:background .12s,color .12s;
+  white-space:nowrap;
+}
+.tab:hover{background:#1e1e1e;color:#bbb}
+.tab.active{background:#222;color:#eee}
+.tab .dot{
+  width:7px;height:7px;border-radius:50%;background:#333;
+  flex-shrink:0;transition:background .4s,box-shadow .4s;
+}
+.dot.ok {background:#3fb950}
+.dot.err{background:#f85149;box-shadow:0 0 5px #f8514966}
+.dot.spin{background:#d29922;animation:blink 1.1s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+#updated{margin-left:auto;font-size:10px;color:#333;padding-right:4px}
+
+/* ── OVERVIEW GRID ── */
+#overview{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  padding:12px;height:calc(100vh - 38px);overflow:auto;align-content:start;
+}
+.card{
+  background:#111;border:1px solid #1e1e1e;border-radius:8px;
+  padding:14px 14px 12px;cursor:pointer;
+  transition:border-color .15s,background .15s;
+  display:flex;flex-direction:column;gap:6px;
+}
+.card:hover{background:#181818;border-color:#2a2a2a}
+.card .port-label{font-size:10px;color:#444;letter-spacing:.06em}
+.card .svc-name{font-size:12px;color:#888}
+.card .row{display:flex;align-items:center;gap:8px;margin-top:4px}
+.card .code{font-size:22px;font-weight:700;line-height:1}
+.code.ok {color:#3fb950}
+.code.err{color:#f85149}
+.code.spin{color:#555}
+.card .open{
+  margin-left:auto;font-size:10px;color:#333;
+  padding:2px 7px;border:1px solid #222;border-radius:4px;
+  transition:color .12s,border-color .12s;
+}
+.card:hover .open{color:#666;border-color:#333}
+
+/* ── IFRAME VIEW ── */
+#frame-wrap{display:none;height:calc(100vh - 38px)}
+#frame-wrap iframe{width:100%;height:100%;border:none;background:#fff}
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <div class="tab active" id="tab-home" onclick="showOverview()" title="Overview">⌂</div>
+</div>
+<span id="updated"></span>
+
+<div id="overview"></div>
+<div id="frame-wrap"><iframe id="main-frame" src="about:blank"></iframe></div>
+
+<script>
+const SVCS = [
+  {id:'ar',  name:'drift · ar',   port:8000, path:'/'},
+  {id:'en',  name:'drift · en',   port:8001, path:'/'},
+  {id:'gr',  name:'drift · gr',   port:8002, path:'/'},
+  {id:'br',  name:'drift · br',   port:8003, path:'/'},
+  {id:'px',  name:'parallax',     port:8765, path:'/'},
+  {id:'mon', name:'monitor',      port:8080, path:'/monitor', local:true},
+];
+
+const bar      = document.getElementById('bar');
+const overview = document.getElementById('overview');
+
+SVCS.forEach(svc => {
+  // tab
+  const tab = document.createElement('div');
+  tab.className = 'tab';
+  tab.id = `tab-${svc.id}`;
+  tab.onclick = () => showFrame(svc);
+  tab.innerHTML = `<span class="dot spin" id="dot-${svc.id}"></span>${svc.name}`;
+  bar.appendChild(tab);
+
+  // card
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.onclick = () => showFrame(svc);
+  card.innerHTML = `
+    <div class="port-label">localhost:${svc.port}${svc.path !== '/' ? svc.path : ''}</div>
+    <div class="svc-name">${svc.name}</div>
+    <div class="row">
+      <div class="code spin" id="st-${svc.id}">—</div>
+      <div class="open">open →</div>
+    </div>`;
+  overview.appendChild(card);
+});
+
+// move #updated inside bar at the very end
+bar.appendChild(document.getElementById('updated'));
+
+async function poll() {
+  try {
+    const r = await fetch('/api/status');
+    const data = await r.json();
+
+    SVCS.forEach(svc => {
+      if (svc.local) return; // monitor is on this server
+      const code = data[svc.port] ?? 0;
+      const ok   = code >= 200 && code < 400;
+      const cls  = ok ? 'ok' : 'err';
+      document.getElementById(`dot-${svc.id}`).className = `dot ${cls}`;
+      const st = document.getElementById(`st-${svc.id}`);
+      st.className = `code ${cls}`;
+      st.textContent = ok ? code : (code === 0 ? 'DOWN' : code);
+    });
+
+    // monitor is always local — assume alive if this page loaded
+    document.getElementById('dot-mon').className = 'dot ok';
+    document.getElementById('st-mon').className  = 'code ok';
+    document.getElementById('st-mon').textContent = '200';
+
+    const now = new Date();
+    document.getElementById('updated').textContent =
+      `updated ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+  } catch {
+    // dashboard server itself unreachable
+  }
+}
+
+function showOverview() {
+  document.getElementById('overview').style.display = 'grid';
+  document.getElementById('frame-wrap').style.display = 'none';
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-home').classList.add('active');
+}
+
+function showFrame(svc) {
+  document.getElementById('overview').style.display = 'none';
+  const fw = document.getElementById('frame-wrap');
+  fw.style.display = 'block';
+  document.getElementById('main-frame').src = `http://localhost:${svc.port}${svc.path}`;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`tab-${svc.id}`).classList.add('active');
+}
+
+poll();
+setInterval(poll, 10000);
+</script>
+</body>
+</html>
