@@ -8,72 +8,109 @@
 html,body{background:#0c0c0c;color:#ccc;
   font-family:'SF Mono',Monaco,Menlo,monospace;font-size:12px;overflow:auto}
 
+/* ── top bar ── */
 #mac-row{
   display:flex;gap:0;border-bottom:1px solid #1a1a1a;
-  background:#0e0e0e;padding:8px 16px;align-items:center;font-size:10px;
+  background:#0e0e0e;padding:8px 16px;align-items:center;font-size:10px;flex-shrink:0;
 }
 .mac-stat{padding:0 14px;border-right:1px solid #1a1a1a;display:flex;gap:6px;align-items:center;color:#333}
 .mac-stat:first-child{padding-left:0}
-.mac-stat:last-child{border-right:none}
 .mac-val{font-weight:700;color:#666}
 #status-bar{margin-left:auto;display:flex;align-items:center;gap:8px}
 #fetch-dot{width:6px;height:6px;border-radius:50%;background:#252525;flex-shrink:0;transition:background .2s}
-#fetch-dot.fetching{background:#e3b341;animation:pulse 0.8s infinite}
-#fetch-dot.ok     {background:#3fb950}
-#fetch-dot.err    {background:#f85149}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+#fetch-dot.fetching{background:#e3b341;animation:blink .8s infinite}
+#fetch-dot.ok {background:#3fb950}
+#fetch-dot.err{background:#f85149}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 #last-refresh{font-size:9px;color:#333}
 #refresh-btn{background:none;border:1px solid #222;border-radius:4px;
   color:#444;font-family:inherit;font-size:9px;padding:2px 8px;cursor:pointer;transition:all .1s}
 #refresh-btn:hover{border-color:#3fb950;color:#3fb950}
 #refresh-btn.spinning{color:#555;border-color:#1a1a1a;cursor:default}
 
-#grid{
-  display:grid;grid-template-columns:repeat(3,1fr);
-  gap:8px;padding:10px;
-}
+/* ── columns layout ── */
+#columns{display:flex;gap:0;align-items:flex-start;padding:10px;gap:8px}
+#training-col{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#pi-col{width:190px;flex-shrink:0;display:flex;flex-direction:column;gap:4px}
 
-.lens-card{
+/* ── training cards ── */
+.t-card{
   background:#111;border:1px solid #1e1e1e;border-radius:6px;
-  padding:11px 13px;display:flex;flex-direction:column;gap:7px;
+  padding:11px 13px;display:flex;flex-direction:column;gap:6px;
+  cursor:pointer;transition:border-color .12s,background .12s;
 }
-.lens-card.training-off{border-color:#2a1515;opacity:.65}
+.t-card:hover{background:#151515;border-color:#2a2a2a}
+.t-card.active{border-color:#3fb950;background:#0d150d}
+.t-card.training-off{opacity:.6}
 
 .card-head{display:flex;justify-content:space-between;align-items:flex-start}
 .lens-name{font-size:10px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.08em}
-.badges{display:flex;gap:4px}
 .badge{font-size:8px;padding:1px 5px;border-radius:8px;font-weight:600}
-.badge.on   {background:#0c2010;color:#3fb950;border:1px solid #1a3020}
-.badge.off  {background:#280808;color:#f85149;border:1px solid #3a1818}
-.badge.pi-ok{background:#081828;color:#58a6ff;border:1px solid #1a2a3a}
-.badge.pi-no{background:#181818;color:#333;border:1px solid #222}
+.badge.on {background:#0c2010;color:#3fb950;border:1px solid #1a3020}
+.badge.off{background:#280808;color:#f85149;border:1px solid #3a1818}
 
-.metrics{display:flex;flex-direction:column;gap:3px}
-.mrow{display:flex;align-items:baseline;gap:6px}
-.lbl{font-size:9px;color:#2a2a2a;width:84px;flex-shrink:0;text-transform:uppercase;letter-spacing:.04em}
+.t-metrics{display:flex;flex-direction:column;gap:3px}
+.mrow{display:flex;align-items:baseline;gap:5px}
+.lbl{font-size:9px;color:#2a2a2a;width:78px;flex-shrink:0;text-transform:uppercase}
 .val{font-size:11px;font-weight:600}
-.val.good{color:#3fb950}
-.val.warn{color:#e3b341}
-.val.bad {color:#f85149}
-.val.dim {color:#333}
-.val.norm{color:#666}
+.val.good{color:#3fb950}.val.warn{color:#e3b341}.val.bad{color:#f85149}.val.norm{color:#555}
 
-.pi-section{border-top:1px solid #181818;padding-top:6px;display:flex;gap:0}
-.pi-cell{font-size:9px;color:#2a2a2a;padding:0 9px;border-right:1px solid #181818;display:flex;flex-direction:column;gap:1px}
-.pi-cell:first-child{padding-left:0}
-.pi-cell:last-child{border-right:none}
-.pi-cell .pv{font-size:10px;font-weight:700;color:#555}
-.pv.hot{color:#e3b341}
-.pv.crit{color:#f85149}
-.pv.ok{color:#3fb950}
+/* ── Pi column ── */
+.pi-col-hdr{font-size:9px;color:#252525;text-transform:uppercase;letter-spacing:.08em;
+  padding:2px 0 4px 2px;border-bottom:1px solid #181818;margin-bottom:2px}
 
-#footer{text-align:center;padding:6px 0 10px;font-size:9px;color:#1e1e1e}
+.pi-row{
+  background:#0e0e0e;border:1px solid #181818;border-radius:4px;
+  padding:7px 9px;display:flex;flex-direction:column;gap:4px;
+}
+.pi-row-head{display:flex;justify-content:space-between;align-items:center}
+.pi-id{font-size:9px;color:#333;font-weight:700}
+.pi-lens{font-size:8px;color:#252525;text-transform:uppercase;letter-spacing:.05em}
+.pi-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.pi-dot.ok {background:#3fb950}
+.pi-dot.off{background:#252525}
+
+.pi-stats{display:flex;gap:0;flex-wrap:nowrap}
+.ps{font-size:9px;color:#2a2a2a;padding:0 7px;border-right:1px solid #181818;display:flex;flex-direction:column;gap:1px}
+.ps:first-child{padding-left:0}
+.ps:last-child{border-right:none}
+.pv{font-size:10px;font-weight:700;color:#444}
+.pv.hot{color:#e3b341}.pv.crit{color:#f85149}.pv.ok{color:#3fb950}
+.pl{font-size:7px;color:#222}
+.pi-offline{font-size:9px;color:#252525;padding-top:2px}
+
+/* ── detail panel ── */
+#detail{
+  display:none;margin:0 10px 10px;
+  background:#0d0d0d;border:1px solid #1e3020;border-radius:6px;
+  padding:14px 16px;
+}
+#detail.visible{display:block}
+#d-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+#d-name{font-size:13px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.08em}
+#d-desc{font-size:10px;color:#3a3a3a;margin-top:3px;line-height:1.5}
+#d-close{background:none;border:none;color:#2a2a2a;cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 8px}
+#d-close:hover{color:#666}
+
+#d-topics{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+.topic-chip{font-size:9px;padding:2px 7px;background:#111;border:1px solid #1e1e1e;
+  border-radius:10px;color:#333;white-space:nowrap}
+
+#d-stats{display:flex;gap:0;border-top:1px solid #181818;padding-top:10px}
+.ds{padding:0 18px;border-right:1px solid #181818;display:flex;flex-direction:column;gap:3px}
+.ds:first-child{padding-left:0}
+.ds:last-child{border-right:none}
+.ds-lbl{font-size:8px;color:#252525;text-transform:uppercase;letter-spacing:.06em}
+.ds-val{font-size:12px;font-weight:700;color:#666}
+.ds-val.good{color:#3fb950}.ds-val.warn{color:#e3b341}.ds-val.bad{color:#f85149}
+
+#footer{text-align:center;padding:4px 0 10px;font-size:9px;color:#1a1a1a}
 </style>
 </head>
 <body>
 
 <div id="mac-row">
-  <div class="mac-stat">CPU <span class="mac-val" id="m-cpu">—</span></div>
+  <div class="mac-stat">MAC CPU <span class="mac-val" id="m-cpu">—</span></div>
   <div class="mac-stat">RAM <span class="mac-val" id="m-ram">—</span></div>
   <div class="mac-stat">DISK <span class="mac-val" id="m-disk">—</span></div>
   <div id="status-bar">
@@ -83,7 +120,30 @@ html,body{background:#0c0c0c;color:#ccc;
   </div>
 </div>
 
-<div id="grid"></div>
+<div id="columns">
+  <div id="training-col"></div>
+  <div id="pi-col">
+    <div class="pi-col-hdr">raspberry pi</div>
+  </div>
+</div>
+
+<div id="detail">
+  <div id="d-head">
+    <div>
+      <div id="d-name">—</div>
+      <div id="d-desc">—</div>
+    </div>
+    <button id="d-close" onclick="closeDetail()">✕</button>
+  </div>
+  <div id="d-topics"></div>
+  <div id="d-stats">
+    <div class="ds"><div class="ds-lbl">corpus</div><div class="ds-val" id="dd-chunks">—</div></div>
+    <div class="ds"><div class="ds-lbl">last trained</div><div class="ds-val" id="dd-trained">—</div></div>
+    <div class="ds"><div class="ds-lbl">adapter</div><div class="ds-val" id="dd-adapter">—</div></div>
+    <div class="ds"><div class="ds-lbl">training</div><div class="ds-val" id="dd-status">—</div></div>
+  </div>
+</div>
+
 <div id="footer">training monitor · auto-refresh 30s</div>
 
 <script>
@@ -92,6 +152,56 @@ const LENS_NAMES = [
   'digital_time','liminal_time','more_than_human_time',
 ];
 
+const LENS_META = {
+  human_time: {
+    pi: 'PI 1', host: 'pi1.local',
+    desc: 'Personal memory, daily life, and generational experience across Tokyo and New York.',
+    topics: ['Tokyo daily life 1980s–90s','Showa/Heisei era youth','Setagaya neighborhood','New York immigrant life 2000s',
+             'Japanese oral history','Korean-Japanese diaspora','New York artist community','Tokyo commuter culture',
+             'Japan domestic life 1990s','Tokyo university life 2000s'],
+  },
+  infrastructure_time: {
+    pi: 'PI 2', host: 'pi2.local',
+    desc: 'Administrative systems, immigration bureaucracy, and legal residency in Japan and the US.',
+    topics: ['Japan immigration policy 2000s','US O-1 artist visa','Japan zairyu card system','New York immigration history',
+             'Alien registration process','US immigration reform','Japan visa for cultural activities',
+             'NY immigrant services','Japan foreign residency law','South Korea immigration'],
+  },
+  environmental_time: {
+    pi: 'PI 3', host: 'pi3.local',
+    desc: 'Climate, ecology, and the natural world across Tokyo, New York, and the Pacific coast.',
+    topics: ['Tokyo climate & seasons','Japan 1990s natural disasters','Setagaya parks & rivers',
+             'New York weather history','Kanto plain ecology','Tokyo urban heat island',
+             'Hudson River ecology','Japan Pacific coast climate','Seoul seasonal history','Hanshin earthquake 1995'],
+  },
+  digital_time: {
+    pi: 'PI 4', host: 'pi4.local',
+    desc: 'Internet culture, technology adoption, and digital communities in Japan and the US.',
+    topics: ['Japan internet 1990s–2000s','2channel bulletin board','Tokyo mobile phones 2000s',
+             'New York digital media art','Japan broadband expansion','Japanese video game culture',
+             'New York early social media','Japan i-mode mobile internet','South Korea broadband','New media art'],
+  },
+  liminal_time: {
+    pi: 'PI 5', host: 'pi5.local',
+    desc: 'Migration, diaspora identity, and the experience of crossing borders between Japan and the US.',
+    topics: ['Japanese diaspora New York','Japan emigration artists abroad','Cultural identity Japan/America',
+             'Transnational artist experience','Border crossing narrative','Kikokushijo returnee experience',
+             'New York artist visa story','Liminality & migration theory','Japan cultural exchange US','Diaspora belonging'],
+  },
+  more_than_human_time: {
+    pi: 'PI 6', host: 'pi6.local',
+    desc: 'Urban ecology, geology, and multispecies coexistence in Tokyo and New York.',
+    topics: ['Tokyo urban wildlife & birds','Japan geological history','Tama River ecosystem',
+             'New York Central Park ecology','Japan endemic biodiversity','Tokyo rivers & waterways',
+             'Japan satoyama landscape','New York harbor ecology','Japan phenology cherry blossom',
+             'Multispecies urban cohabitation'],
+  },
+};
+
+let _lastData   = {};
+let _activeLens = null;
+
+// ── helpers ──
 function reltime(iso) {
   if (!iso) return 'never';
   const s = Math.floor((Date.now() - new Date(iso)) / 1000);
@@ -100,51 +210,94 @@ function reltime(iso) {
   if (s < 86400) return `${Math.floor(s/3600)}h ago`;
   return `${Math.floor(s/86400)}d ago`;
 }
+function chunkCls(n) { return (!n||n<10)?'bad':n<50?'warn':'good'; }
+function tempCls(t)  { return !t?'':t>75?'crit':t>65?'hot':'ok'; }
+function fmt(v,u)    { return v!=null?`${Number(v).toFixed(u==='°C'?1:0)}${u}`:'—'; }
 
-function chunkCls(n) {
-  if (!n || n < 10) return 'bad';
-  if (n < 50)       return 'warn';
-  return 'good';
-}
+// ── build DOM ──
+function buildAll() {
+  const tc = document.getElementById('training-col');
+  const pc = document.getElementById('pi-col');
 
-function tempCls(t) {
-  if (!t)    return '';
-  if (t > 75) return 'crit';
-  if (t > 65) return 'hot';
-  return 'ok';
-}
-
-function fmt(v, unit) { return v != null ? `${Number(v).toFixed(unit==='°C'?1:0)}${unit}` : '—'; }
-
-function buildCards() {
-  const grid = document.getElementById('grid');
   LENS_NAMES.forEach(lens => {
-    const d = document.createElement('div');
-    d.className = 'lens-card';
-    d.id = `card-${lens}`;
-    d.innerHTML = `
+    // training card
+    const c = document.createElement('div');
+    c.className = 't-card';
+    c.id = `card-${lens}`;
+    c.onclick = () => toggleDetail(lens);
+    c.innerHTML = `
       <div class="card-head">
         <div class="lens-name">${lens.replace(/_/g,' ')}</div>
-        <div class="badges">
-          <span class="badge" id="bt-${lens}">TRAIN</span>
-          <span class="badge" id="bp-${lens}">PI</span>
-        </div>
+        <span class="badge" id="bt-${lens}">TRAIN</span>
       </div>
-      <div class="metrics">
+      <div class="t-metrics">
         <div class="mrow"><span class="lbl">corpus</span><span class="val" id="vc-${lens}">—</span></div>
         <div class="mrow"><span class="lbl">last train</span><span class="val norm" id="vt-${lens}">—</span></div>
         <div class="mrow"><span class="lbl">adapter</span><span class="val norm" id="va-${lens}">—</span></div>
-      </div>
-      <div class="pi-section" id="pi-${lens}" style="display:none">
-        <div class="pi-cell"><div style="font-size:8px;color:#252525">TEMP</div><div class="pv" id="pt-${lens}">—</div></div>
-        <div class="pi-cell"><div style="font-size:8px;color:#252525">CPU</div><div class="pv" id="pc-${lens}">—</div></div>
-        <div class="pi-cell"><div style="font-size:8px;color:#252525">RAM</div><div class="pv" id="pr-${lens}">—</div></div>
-        <div class="pi-cell"><div style="font-size:8px;color:#252525">MODEL</div><div class="pv" id="pm-${lens}">—</div></div>
       </div>`;
-    grid.appendChild(d);
+    tc.appendChild(c);
+
+    // pi row
+    const p = document.createElement('div');
+    p.className = 'pi-row';
+    p.id = `pi-row-${lens}`;
+    p.innerHTML = `
+      <div class="pi-row-head">
+        <div>
+          <div class="pi-id">${LENS_META[lens].pi} · <span style="color:#252525">${lens.replace(/_/g,' ')}</span></div>
+        </div>
+        <span class="pi-dot off" id="pi-dot-${lens}"></span>
+      </div>
+      <div id="pi-body-${lens}">
+        <div class="pi-offline">offline</div>
+      </div>`;
+    pc.appendChild(p);
   });
 }
 
+// ── detail panel ──
+function toggleDetail(lens) {
+  if (_activeLens === lens) {
+    closeDetail(); return;
+  }
+  _activeLens = lens;
+  document.querySelectorAll('.t-card').forEach(c => c.classList.remove('active'));
+  document.getElementById(`card-${lens}`).classList.add('active');
+  showDetail(lens);
+}
+
+function closeDetail() {
+  _activeLens = null;
+  document.querySelectorAll('.t-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('detail').classList.remove('visible');
+}
+
+function showDetail(lens) {
+  const meta = LENS_META[lens];
+  const ld   = _lastData[lens] || {};
+
+  document.getElementById('d-name').textContent = lens.replace(/_/g,' ');
+  document.getElementById('d-desc').textContent = meta.desc;
+
+  const topicsEl = document.getElementById('d-topics');
+  topicsEl.innerHTML = meta.topics.map(t => `<span class="topic-chip">${t}</span>`).join('');
+
+  const chunks = ld.corpus_chunks ?? 0;
+  const chunksEl = document.getElementById('dd-chunks');
+  chunksEl.textContent = chunks ? `${chunks} chunks` : '0 chunks';
+  chunksEl.className   = `ds-val ${chunkCls(chunks)}`;
+
+  document.getElementById('dd-trained').textContent  = reltime(ld.last_training_at);
+  document.getElementById('dd-adapter').textContent  = ld.adapter_version || '—';
+
+  const stEl = document.getElementById('dd-status');
+  stEl.textContent = ld.training_enabled !== false ? 'enabled' : 'paused';
+  stEl.className   = `ds-val ${ld.training_enabled !== false ? 'good' : 'warn'}`;
+
+  document.getElementById('detail').classList.add('visible');
+}
+
+// ── data refresh ──
 async function refresh() {
   const dot = document.getElementById('fetch-dot');
   const ts  = document.getElementById('last-refresh');
@@ -172,42 +325,47 @@ async function refresh() {
   ts.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
   setTimeout(() => { if (dot.className === 'ok') dot.className = ''; }, 2000);
 
-  const lenses = data.lenses || {};
-  LENS_NAMES.forEach(lens => {
-    const ld = lenses[lens] || {};
+  _lastData = data.lenses || {};
 
-    document.getElementById(`card-${lens}`).className =
-      'lens-card' + (ld.training_enabled === false ? ' training-off' : '');
+  LENS_NAMES.forEach(lens => {
+    const ld = _lastData[lens] || {};
+
+    // training card
+    const card = document.getElementById(`card-${lens}`);
+    const wasActive = card.classList.contains('active');
+    card.className = 't-card' + (ld.training_enabled === false ? ' training-off' : '') + (wasActive ? ' active' : '');
 
     const bt = document.getElementById(`bt-${lens}`);
     bt.className   = `badge ${ld.training_enabled !== false ? 'on' : 'off'}`;
     bt.textContent = ld.training_enabled !== false ? 'TRAIN' : 'PAUSED';
 
-    const bp = document.getElementById(`bp-${lens}`);
-    bp.className   = `badge ${ld.pi_online ? 'pi-ok' : 'pi-no'}`;
-    bp.textContent = ld.pi_online ? 'PI ●' : 'PI ○';
-
     const vc = document.getElementById(`vc-${lens}`);
     vc.className   = `val ${chunkCls(ld.corpus_chunks)}`;
     vc.textContent = ld.corpus_chunks != null ? `${ld.corpus_chunks} chunks` : '—';
-
     document.getElementById(`vt-${lens}`).textContent = reltime(ld.last_training_at);
     document.getElementById(`va-${lens}`).textContent = ld.adapter_version || '—';
 
-    const piSec = document.getElementById(`pi-${lens}`);
+    // pi column
+    const piDot  = document.getElementById(`pi-dot-${lens}`);
+    const piBody = document.getElementById(`pi-body-${lens}`);
     if (ld.pi_online) {
-      piSec.style.display = 'flex';
+      piDot.className = 'pi-dot ok';
       const tc = tempCls(ld.pi_temp);
-      const ptEl = document.getElementById(`pt-${lens}`);
-      ptEl.textContent = fmt(ld.pi_temp, '°C');
-      ptEl.className   = `pv ${tc}`;
-      document.getElementById(`pc-${lens}`).textContent = fmt(ld.pi_cpu_pct, '%');
-      document.getElementById(`pr-${lens}`).textContent = fmt(ld.pi_ram_pct, '%');
-      document.getElementById(`pm-${lens}`).textContent = ld.pi_model_loaded ? '✓' : '…';
+      piBody.innerHTML = `
+        <div class="pi-stats">
+          <div class="ps"><div class="pl">TEMP</div><div class="pv ${tc}">${fmt(ld.pi_temp,'°C')}</div></div>
+          <div class="ps"><div class="pl">CPU</div><div class="pv">${fmt(ld.pi_cpu_pct,'%')}</div></div>
+          <div class="ps"><div class="pl">RAM</div><div class="pv">${fmt(ld.pi_ram_pct,'%')}</div></div>
+          <div class="ps"><div class="pl">MODEL</div><div class="pv ${ld.pi_model_loaded?'ok':''}">${ld.pi_model_loaded?'✓':'…'}</div></div>
+        </div>`;
     } else {
-      piSec.style.display = 'none';
+      piDot.className = 'pi-dot off';
+      piBody.innerHTML = `<div class="pi-offline">offline</div>`;
     }
   });
+
+  // refresh detail panel if open
+  if (_activeLens) showDetail(_activeLens);
 }
 
 function manualRefresh() {
@@ -221,7 +379,7 @@ function manualRefresh() {
   });
 }
 
-buildCards();
+buildAll();
 refresh();
 setInterval(refresh, 30000);
 </script>
