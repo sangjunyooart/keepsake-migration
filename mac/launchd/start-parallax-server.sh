@@ -12,7 +12,9 @@ if [ -z "$PROJECT_DIR" ]; then
     exit 1
 fi
 
-PYTHON="$PROJECT_DIR/venv/bin/python"
+PYTHON="$PROJECT_DIR/venv/bin/python3.12"
+# Fall back to generic python if 3.12 binary not present
+[ -x "$PYTHON" ] || PYTHON="$PROJECT_DIR/venv/bin/python"
 
 if [ ! -x "$PYTHON" ]; then
     echo "ERROR: python not found at $PYTHON" >&2
