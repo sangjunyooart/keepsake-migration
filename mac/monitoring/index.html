@@ -118,7 +118,7 @@ const SVCS = [
   {id:'en',  name:'drift · EN',  port:8001, path:'/admin'},
   {id:'gr',  name:'drift · GR',  port:8002, path:'/admin'},
   {id:'br',  name:'drift · BR',  port:8003, path:'/admin'},
-  {id:'px',  name:'parallax',    port:8765, path:'/'},
+  {id:'px',  name:'parallax',    port:8765, path:'/admin'},
   {id:'mon', name:'monitor',     port:8080, path:'/monitor', local:true},
 ];
 const TOGGLE_RE = /toggle|auto|tick|drift|start|stop|enable|disable|run|pause/i;
@@ -175,23 +175,26 @@ document.addEventListener('click', e => {
 
 function switchTo(id) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(`tab-${id === 'home' ? 'home' : id}`).classList.add('active');
 
   if (id === 'home') {
     ov.style.display     = 'grid';
     viewer.style.display = 'none';
+    document.getElementById('tab-home').classList.add('active');
     return;
   }
 
-  // Open admin page directly in a new Chrome tab
   const svc = SVCS.find(s => s.id === id);
-  window.open(`http://localhost:${svc.port}${svc.path}`, `keepsake-${id}`);
-
-  // Stay on overview — it's the compact home base
-  ov.style.display     = 'grid';
-  viewer.style.display = 'none';
-  document.getElementById('tab-home').classList.add('active');
   document.getElementById(`tab-${id}`).classList.add('active');
+  ov.style.display     = 'none';
+  viewer.style.display = 'block';
+  // Route through proxy so iframe works without X-Frame-Options issues
+  const proxyUrl = svc.local
+    ? `/monitor`
+    : `/proxy/${svc.port}${svc.path}`;
+  if (viewer.dataset.current !== proxyUrl) {
+    viewer.src = proxyUrl;
+    viewer.dataset.current = proxyUrl;
+  }
 }
 
 // health poll
