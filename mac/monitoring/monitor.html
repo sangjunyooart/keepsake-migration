@@ -16,8 +16,14 @@ html,body{background:#0c0c0c;color:#ccc;
 .mac-stat:first-child{padding-left:0}
 .mac-stat:last-child{border-right:none}
 .mac-val{font-weight:700;color:#666}
-#last-refresh{font-size:9px;color:#252525}
-#refresh-btn{margin-left:auto;background:none;border:1px solid #222;border-radius:4px;
+#status-bar{margin-left:auto;display:flex;align-items:center;gap:8px}
+#fetch-dot{width:6px;height:6px;border-radius:50%;background:#252525;flex-shrink:0;transition:background .2s}
+#fetch-dot.fetching{background:#e3b341;animation:pulse 0.8s infinite}
+#fetch-dot.ok     {background:#3fb950}
+#fetch-dot.err    {background:#f85149}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+#last-refresh{font-size:9px;color:#333}
+#refresh-btn{background:none;border:1px solid #222;border-radius:4px;
   color:#444;font-family:inherit;font-size:9px;padding:2px 8px;cursor:pointer;transition:all .1s}
 #refresh-btn:hover{border-color:#3fb950;color:#3fb950}
 #refresh-btn.spinning{color:#555;border-color:#1a1a1a;cursor:default}
@@ -70,8 +76,11 @@ html,body{background:#0c0c0c;color:#ccc;
   <div class="mac-stat">CPU <span class="mac-val" id="m-cpu">—</span></div>
   <div class="mac-stat">RAM <span class="mac-val" id="m-ram">—</span></div>
   <div class="mac-stat">DISK <span class="mac-val" id="m-disk">—</span></div>
-  <span id="last-refresh">—</span>
-  <button id="refresh-btn" onclick="manualRefresh()">↻ refresh</button>
+  <div id="status-bar">
+    <span id="fetch-dot"></span>
+    <span id="last-refresh">waiting…</span>
+    <button id="refresh-btn" onclick="manualRefresh()">↻ refresh</button>
+  </div>
 </div>
 
 <div id="grid"></div>
@@ -137,11 +146,21 @@ function buildCards() {
 }
 
 async function refresh() {
+  const dot = document.getElementById('fetch-dot');
+  const ts  = document.getElementById('last-refresh');
+  dot.className = 'fetching';
+  ts.textContent = 'fetching…';
+
   let data;
   try {
     const r = await fetch('/api/training-status');
     data = await r.json();
-  } catch { return; }
+  } catch {
+    dot.className = 'err';
+    ts.textContent = 'error';
+    setTimeout(() => { dot.className = ''; ts.textContent = 'retrying…'; }, 3000);
+    return;
+  }
 
   const mac = data.mac || {};
   document.getElementById('m-cpu').textContent  = mac.cpu_pct  != null ? `${mac.cpu_pct.toFixed(0)}%`  : '—';
@@ -149,8 +168,9 @@ async function refresh() {
   document.getElementById('m-disk').textContent = mac.disk_pct != null ? `${mac.disk_pct.toFixed(0)}%` : '—';
 
   const now = new Date();
-  document.getElementById('last-refresh').textContent =
-    `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  dot.className = 'ok';
+  ts.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  setTimeout(() => { if (dot.className === 'ok') dot.className = ''; }, 2000);
 
   const lenses = data.lenses || {};
   LENS_NAMES.forEach(lens => {
