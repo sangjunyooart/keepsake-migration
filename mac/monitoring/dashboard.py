@@ -102,17 +102,18 @@ def training_status():
         except Exception:
             pass
 
+        sys_info = pi_data.get("system", {})
         lenses[lens] = {
             "corpus_chunks":    chunk_count,
             "training_enabled": training_enabled,
             "last_training_at": last_training_at,
             "adapter_version":  adapter_version,
             "pi_online":        bool(pi_data),
-            "pi_temp":          pi_data.get("temp_c"),
-            "pi_cpu_pct":       pi_data.get("cpu_pct"),
-            "pi_ram_pct":       pi_data.get("ram_pct"),
-            "pi_disk_pct":      pi_data.get("disk_pct"),
-            "pi_model_loaded":  pi_data.get("model_loaded"),
+            "pi_temp":          sys_info.get("cpu_temp"),
+            "pi_cpu_pct":       sys_info.get("cpu_percent"),
+            "pi_ram_pct":       sys_info.get("memory_percent"),
+            "pi_disk_pct":      sys_info.get("disk_percent"),
+            "pi_model_loaded":  pi_data.get("inference_ready"),
         }
 
     return {"mac": mac_stats, "lenses": lenses}
