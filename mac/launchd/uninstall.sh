@@ -5,6 +5,10 @@
 LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
 
 PLISTS=(
+    "com.keepsake.drift.plist"
+    "com.keepsake.drift-en.plist"
+    "com.keepsake.drift-gr.plist"
+    "com.keepsake.drift-br.plist"
     "com.keepsake.migration.lens-human-time.plist"
     "com.keepsake.migration.lens-infrastructure-time.plist"
     "com.keepsake.migration.lens-environmental-time.plist"
@@ -12,7 +16,6 @@ PLISTS=(
     "com.keepsake.migration.lens-liminal-time.plist"
     "com.keepsake.migration.lens-more-than-human-time.plist"
     "com.keepsake.migration.dashboard.plist"
-    "com.keepsake.drift.plist"
     "com.keepsake.chrome-opener.plist"
 )
 

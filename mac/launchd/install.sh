@@ -1,5 +1,5 @@
 #!/bin/bash
-# One-shot installer — run this once on the Mac mini after git clone.
+# One-shot installer — run this once on the Mac mini after git clone/pull.
 # Replaces YOUR_USERNAME with the actual macOS username in all plists,
 # copies them to ~/Library/LaunchAgents/, then loads them.
 #
@@ -20,15 +20,17 @@ echo ""
 
 # Make sure log dirs exist
 mkdir -p "$LOG_DIR"
-mkdir -p "$HOME/keepsake-drift/logs"
 
 # Make launcher scripts executable
 chmod +x "$SCRIPT_DIR/start-lens.sh"
 chmod +x "$SCRIPT_DIR/start-dashboard.sh"
-chmod +x "$SCRIPT_DIR/start-drift.sh"
 chmod +x "$HOME/keepsake-migration/mac/scripts/open-admin-pages.sh"
 
 PLISTS=(
+    "com.keepsake.drift.plist"
+    "com.keepsake.drift-en.plist"
+    "com.keepsake.drift-gr.plist"
+    "com.keepsake.drift-br.plist"
     "com.keepsake.migration.lens-human-time.plist"
     "com.keepsake.migration.lens-infrastructure-time.plist"
     "com.keepsake.migration.lens-environmental-time.plist"
@@ -36,7 +38,6 @@ PLISTS=(
     "com.keepsake.migration.lens-liminal-time.plist"
     "com.keepsake.migration.lens-more-than-human-time.plist"
     "com.keepsake.migration.dashboard.plist"
-    "com.keepsake.drift.plist"
     "com.keepsake.chrome-opener.plist"
 )
 

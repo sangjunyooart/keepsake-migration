@@ -3,16 +3,16 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.keepsake.drift</string>
+    <string>com.keepsake.drift-gr</string>
 
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift/start.sh</string>
+        <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift_gr/start.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift</string>
+    <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift_gr</string>
 
     <key>RunAtLoad</key>
     <true/>
@@ -21,10 +21,10 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift/server.log</string>
+    <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift_gr/server.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift/server.err</string>
+    <string>/Users/YOUR_USERNAME/Desktop/keepsake_drift_gr/server.err</string>
 
     <key>EnvironmentVariables</key>
     <dict>

@@ -5,11 +5,14 @@
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 # Wait for services to be ready
-sleep 15
+sleep 20
 
 "$CHROME" \
+    "http://localhost:8000" \
+    "http://localhost:8001" \
+    "http://localhost:8002" \
+    "http://localhost:8003" \
     "http://localhost:8080" \
     "http://localhost:8080/monitor" \
-    "https://keepsake-drift.net/monitor/" \
     --new-window \
     2>/dev/null &
