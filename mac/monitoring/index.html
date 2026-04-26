@@ -2,141 +2,114 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Keepsake Control</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;overflow:hidden;background:#0c0c0c;color:#ddd;font-family:'SF Mono',Monaco,Menlo,monospace;font-size:13px}
+html,body{height:100vh;display:flex;flex-direction:column;overflow:hidden;
+  background:#0c0c0c;color:#ddd;font-family:'SF Mono',Monaco,Menlo,monospace;font-size:13px}
 
-/* ── TAB BAR ── */
+/* TAB BAR */
 #bar{
-  height:42px;display:flex;align-items:stretch;
+  flex-shrink:0;height:42px;display:flex;align-items:stretch;
   background:#111;border-bottom:2px solid #1a1a1a;
-  user-select:none;flex-shrink:0;overflow-x:auto;overflow-y:hidden;
+  overflow-x:auto;overflow-y:hidden;
 }
 #bar::-webkit-scrollbar{height:3px}
 #bar::-webkit-scrollbar-thumb{background:#222}
 
 .tab{
-  display:flex;align-items:center;gap:6px;
-  padding:0 14px;cursor:pointer;
-  font-size:11px;color:#555;
-  border-right:1px solid #1a1a1a;
-  transition:background .12s,color .12s;
-  white-space:nowrap;flex-shrink:0;
-  position:relative;
+  flex-shrink:0;display:flex;align-items:center;gap:6px;
+  padding:0 16px;cursor:pointer;border-right:1px solid #1a1a1a;
+  font-size:11px;color:#555;white-space:nowrap;
+  transition:background .1s,color .1s;
+  border-bottom:2px solid transparent;margin-bottom:-2px;
 }
 .tab:hover{background:#181818;color:#999}
-.tab.active{
-  background:#0c0c0c;color:#eee;
-  border-bottom:2px solid #3fb950;
-  margin-bottom:-2px;
-}
-.tab.active.err-tab{ border-bottom-color:#f85149 }
+.tab.active{background:#0c0c0c;color:#eee;border-bottom-color:#3fb950}
+.tab.down  {border-bottom-color:#f85149}
 
-.tab .dot{
-  width:8px;height:8px;border-radius:50%;background:#2a2a2a;
-  flex-shrink:0;transition:background .4s;
-}
-.dot.ok {background:#3fb950}
-.dot.err{background:#f85149;box-shadow:0 0 4px #f8514988}
-.dot.spin{background:#d29922;animation:blink 1.1s ease-in-out infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.tab .dot{width:8px;height:8px;border-radius:50%;background:#2a2a2a;flex-shrink:0;transition:background .3s}
+.dot.ok  {background:#3fb950}
+.dot.err {background:#f85149;box-shadow:0 0 4px #f8514988}
+.dot.wait{background:#555;animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
 
-.tab-title{display:flex;flex-direction:column;gap:1px}
-.tab-name{font-size:11px;font-weight:600;line-height:1.2}
-.tab-url {font-size:9px;color:#333;line-height:1.2;transition:color .12s}
-.tab:hover  .tab-url{color:#555}
+.tab-name{font-size:11px;font-weight:600;line-height:1.3}
+.tab-url {font-size:9px;color:#333;line-height:1.3;transition:color .1s}
+.tab:hover .tab-url{color:#555}
 .tab.active .tab-url{color:#555}
 
-/* ── STATUS ROW ── */
-#statusrow{
-  height:26px;display:flex;align-items:center;gap:0;
+/* STATUS STRIP */
+#strip{
+  flex-shrink:0;height:24px;display:flex;align-items:center;
   background:#0e0e0e;border-bottom:1px solid #181818;
-  padding:0 10px;font-size:10px;color:#333;flex-shrink:0;
-  overflow:hidden;
+  padding:0 8px;gap:0;overflow:hidden;
 }
-.st-chip{
-  display:flex;align-items:center;gap:4px;
-  padding:0 10px;border-right:1px solid #181818;height:100%;
-}
-.st-chip:first-child{padding-left:0}
-.st-code{font-weight:700}
-.st-code.ok {color:#3fb950}
-.st-code.err{color:#f85149}
-.st-code.spin{color:#2a2a2a}
-#clock{margin-left:auto;color:#222;font-size:9px}
+.chip{display:flex;align-items:center;gap:5px;padding:0 10px;height:100%;border-right:1px solid #181818;font-size:10px}
+.chip .code{font-weight:700}
+.code.ok  {color:#3fb950}
+.code.err {color:#f85149}
+.code.wait{color:#333}
+#clock{margin-left:auto;font-size:9px;color:#252525}
 
-/* ── MAIN AREA ── */
-#main{height:calc(100vh - 42px - 26px);position:relative}
+/* CONTENT AREA */
+#content{flex:1;overflow:hidden;display:flex;flex-direction:column}
 
-/* overview grid */
-#overview{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
-  padding:12px;height:100%;overflow:auto;align-content:start;
+/* overview */
+#ov{
+  flex:1;display:grid;grid-template-columns:repeat(3,1fr);
+  gap:8px;padding:12px;overflow:auto;align-content:start;
 }
 .card{
   background:#111;border:1px solid #1e1e1e;border-radius:8px;
-  padding:14px;cursor:pointer;
+  padding:14px;cursor:pointer;display:flex;flex-direction:column;gap:8px;
   transition:border-color .15s,background .15s;
-  display:flex;flex-direction:column;gap:8px;
 }
 .card:hover{background:#181818;border-color:#2a2a2a}
-.card-top{display:flex;align-items:flex-start;justify-content:space-between}
-.card-left .c-name{font-size:13px;color:#999;font-weight:600}
-.card-left .c-url {font-size:10px;color:#333;margin-top:2px}
-.c-code{font-size:28px;font-weight:700;line-height:1}
-.c-code.ok {color:#3fb950}
-.c-code.err{color:#f85149}
-.c-code.spin{color:#222}
+.card .top{display:flex;justify-content:space-between;align-items:flex-start}
+.card .c-name{font-size:13px;font-weight:600;color:#888}
+.card .c-url {font-size:10px;color:#2a2a2a;margin-top:2px}
+.card .c-code{font-size:28px;font-weight:700}
+.c-code.ok  {color:#3fb950}
+.c-code.err {color:#f85149}
+.c-code.wait{color:#1e1e1e}
 
-/* controls inside card */
-.card-controls{
-  display:flex;flex-direction:column;gap:5px;
-  border-top:1px solid #181818;padding-top:8px;
-}
-.ctrl-row{display:flex;align-items:center;gap:6px;min-height:22px}
-.ctrl-lbl{font-size:9px;color:#3a3a3a;width:76px;flex-shrink:0;text-transform:uppercase;letter-spacing:.05em}
-.pill{
-  display:flex;border:1px solid #222;border-radius:20px;overflow:hidden;background:#181818;flex-shrink:0;
-}
-.p-btn{
-  padding:2px 9px;font-size:9px;font-family:inherit;cursor:pointer;
-  border:none;background:transparent;color:#444;
-  transition:background .12s,color .12s;letter-spacing:.04em;
-}
-.p-btn:hover{color:#888}
-.p-btn.on {background:#0d2410;color:#3fb950}
-.p-btn.off{background:#2a0d0d;color:#f85149}
-.act-btn{
-  padding:2px 8px;font-size:9px;font-family:inherit;cursor:pointer;
-  border:1px solid #222;border-radius:4px;background:#181818;color:#444;
-  transition:all .12s;
-}
-.act-btn:hover{background:#222;color:#aaa;border-color:#333}
-.ctrl-val{font-size:9px;color:#444;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* api controls */
+.card-ctrls{display:flex;flex-direction:column;gap:5px;border-top:1px solid #181818;padding-top:8px}
+.cr{display:flex;align-items:center;gap:6px;min-height:22px}
+.cl{font-size:9px;color:#333;width:80px;flex-shrink:0;text-transform:uppercase;letter-spacing:.05em}
+.pill{display:flex;border:1px solid #222;border-radius:20px;overflow:hidden;background:#181818}
+.pb{padding:2px 10px;font-size:9px;font-family:inherit;cursor:pointer;
+    border:none;background:transparent;color:#444;transition:background .1s,color .1s}
+.pb:hover{color:#888}
+.pb.on {background:#0c2010;color:#3fb950}
+.pb.off{background:#2a0d0d;color:#f85149}
+.ab{padding:2px 8px;font-size:9px;font-family:inherit;cursor:pointer;
+    border:1px solid #222;border-radius:4px;background:#181818;color:#444;transition:all .1s}
+.ab:hover{background:#222;color:#aaa;border-color:#333}
+.cv{font-size:9px;color:#333;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* iframes */
-.frame{display:none;width:100%;height:100%;border:none;background:#fff;position:absolute;top:0;left:0}
-.frame.visible{display:block}
+/* shared iframe */
+#viewer{flex:1;display:none;border:none;background:#fff;width:100%}
 </style>
 </head>
 <body>
 
+<!-- TAB BAR -->
 <div id="bar">
-  <div class="tab active" id="tab-home" onclick="show('home')" title="Overview">
-    <span style="font-size:14px;margin-top:1px">⌂</span>
-    <div class="tab-title">
-      <div class="tab-name">Overview</div>
-      <div class="tab-url">all services</div>
-    </div>
+  <div class="tab active" id="tab-home" data-target="home">
+    <span style="font-size:15px">⌂</span>
+    <div><div class="tab-name">Overview</div><div class="tab-url">all services</div></div>
   </div>
 </div>
 
-<div id="statusrow"></div>
+<!-- STATUS STRIP -->
+<div id="strip"><span id="clock"></span></div>
 
-<div id="main">
-  <div id="overview"></div>
+<!-- CONTENT -->
+<div id="content">
+  <div id="ov"></div>
+  <iframe id="viewer"></iframe>
 </div>
 
 <script>
@@ -148,153 +121,145 @@ const SVCS = [
   {id:'px',  name:'parallax',    port:8765, path:'/'},
   {id:'mon', name:'monitor',     port:8080, path:'/monitor', local:true},
 ];
+const TOGGLE_RE = /toggle|auto|tick|drift|start|stop|enable|disable|run|pause/i;
+const SKIP = new Set(['/openapi.json','/docs','/redoc','/favicon.ico','/']);
 
-const TOGGLE_KEYS = ['toggle','auto','tick','drift','start','stop','enable','disable','run','pause'];
-const IGNORE = new Set(['/openapi.json','/docs','/redoc','/favicon.ico','/']);
+const bar    = document.getElementById('bar');
+const strip  = document.getElementById('strip');
+const ov     = document.getElementById('ov');
+const viewer = document.getElementById('viewer');
+const clock  = document.getElementById('clock');
 
-const bar       = document.getElementById('bar');
-const statusrow = document.getElementById('statusrow');
-const overview  = document.getElementById('overview');
-const main      = document.getElementById('main');
-
-let current = 'home';
-
-/* ── build tabs + status chips + cards + iframes ── */
+// build tabs + chips + cards
 SVCS.forEach(svc => {
-  /* tab */
+  // tab
   const tab = document.createElement('div');
   tab.className = 'tab';
   tab.id = `tab-${svc.id}`;
-  tab.onclick = () => show(svc.id);
+  tab.dataset.target = svc.id;
   tab.innerHTML = `
-    <span class="dot spin" id="dot-${svc.id}"></span>
-    <div class="tab-title">
+    <span class="dot wait" id="dot-${svc.id}"></span>
+    <div>
       <div class="tab-name">${svc.name}</div>
-      <div class="tab-url">localhost:${svc.port}${svc.path!=='/'?svc.path:''}</div>
+      <div class="tab-url">:${svc.port}${svc.path !== '/' ? svc.path : ''}</div>
     </div>`;
   bar.appendChild(tab);
 
-  /* status chip */
+  // status chip
   const chip = document.createElement('div');
-  chip.className = 'st-chip';
-  chip.innerHTML = `<span class="st-code spin" id="sc-${svc.id}">—</span><span style="color:#222">${svc.name}</span>`;
-  statusrow.appendChild(chip);
+  chip.className = 'chip';
+  chip.innerHTML = `<span class="code wait" id="sc-${svc.id}">—</span><span style="color:#252525">${svc.name}</span>`;
+  strip.insertBefore(chip, clock);
 
-  /* overview card */
+  // overview card
   const card = document.createElement('div');
   card.className = 'card';
-  card.id = `card-${svc.id}`;
-  card.onclick = () => show(svc.id);
+  card.dataset.target = svc.id;
   card.innerHTML = `
-    <div class="card-top">
-      <div class="card-left">
-        <div class="c-name">${svc.name}</div>
-        <div class="c-url">localhost:${svc.port}${svc.path!=='/'?svc.path:''}</div>
-      </div>
-      <div class="c-code spin" id="cc-${svc.id}">—</div>
+    <div class="top">
+      <div><div class="c-name">${svc.name}</div><div class="c-url">:${svc.port}${svc.path !== '/' ? svc.path : ''}</div></div>
+      <div class="c-code wait" id="cc-${svc.id}">—</div>
     </div>
-    <div class="card-controls" id="ctrl-${svc.id}">
-      <div class="ctrl-row"><div class="ctrl-val" style="color:#222;font-size:9px">discovering api…</div></div>
+    <div class="card-ctrls" id="ctrl-${svc.id}">
+      <div class="cr"><div class="cv" style="color:#1e1e1e;font-size:9px">discovering api…</div></div>
     </div>`;
-  overview.appendChild(card);
-
-  /* iframe */
-  const fr = document.createElement('iframe');
-  fr.className = 'frame';
-  fr.id = `frame-${svc.id}`;
-  fr.src = 'about:blank';
-  main.appendChild(fr);
+  ov.appendChild(card);
 });
 
-/* clock */
-const clock = document.createElement('span');
-clock.id = 'clock';
-statusrow.appendChild(clock);
+// single click handler via delegation
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-target]');
+  if (!el) return;
+  switchTo(el.dataset.target);
+});
 
-/* ── navigation ── */
-function show(id) {
-  current = id;
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active','err-tab'));
-  document.querySelectorAll('.frame').forEach(f => f.classList.remove('visible'));
-  overview.style.display = 'none';
-
+function switchTo(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   if (id === 'home') {
-    overview.style.display = 'grid';
+    ov.style.display     = 'grid';
+    viewer.style.display = 'none';
     document.getElementById('tab-home').classList.add('active');
     return;
   }
   const svc = SVCS.find(s => s.id === id);
-  const tab  = document.getElementById(`tab-${id}`);
-  const frame = document.getElementById(`frame-${id}`);
-  tab.classList.add('active');
-  frame.classList.add('visible');
-  if (frame.src === 'about:blank') {
-    frame.src = `http://localhost:${svc.port}${svc.path}`;
-  }
+  ov.style.display     = 'none';
+  viewer.style.display = 'block';
+  viewer.src = `http://localhost:${svc.port}${svc.path}`;
+  document.getElementById(`tab-${id}`).classList.add('active');
 }
 
-/* ── health poll ── */
+// health poll
 async function poll() {
   try {
-    const r = await fetch('/api/status');
-    const data = await r.json();
+    const res  = await fetch('/api/status');
+    const data = await res.json();
+    const ts   = new Date();
+    clock.textContent = `${pad(ts.getHours())}:${pad(ts.getMinutes())}:${pad(ts.getSeconds())}`;
+
     SVCS.forEach(svc => {
       const code = svc.local ? 200 : (data[svc.port] ?? 0);
-      const ok   = code>=200 && code<400;
+      const ok   = code >= 200 && code < 400;
       const cls  = ok ? 'ok' : 'err';
+
       document.getElementById(`dot-${svc.id}`).className = `dot ${cls}`;
+
       const sc = document.getElementById(`sc-${svc.id}`);
-      sc.className = `st-code ${cls}`;
-      sc.textContent = ok ? code : (code===0?'✗':code);
+      sc.className   = `code ${cls}`;
+      sc.textContent = ok ? code : (code === 0 ? '✗' : code);
+
       const cc = document.getElementById(`cc-${svc.id}`);
-      cc.className = `c-code ${cls}`;
-      cc.textContent = ok ? code : (code===0?'DOWN':code);
-      /* tint active tab red if service down */
+      cc.className   = `c-code ${cls}`;
+      cc.textContent = ok ? code : (code === 0 ? 'DOWN' : code);
+
       const tab = document.getElementById(`tab-${svc.id}`);
-      if (!ok) tab.classList.add('err-tab'); else tab.classList.remove('err-tab');
+      if (!ok) tab.classList.add('down'); else tab.classList.remove('down');
     });
-    const n = new Date();
-    clock.textContent = `${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')}:${n.getSeconds().toString().padStart(2,'0')}`;
   } catch {}
 }
+const pad = n => String(n).padStart(2, '0');
 
-/* ── openapi control discovery ── */
-async function discoverControls(svc) {
+// openapi control discovery
+async function discover(svc) {
   const ctrl = document.getElementById(`ctrl-${svc.id}`);
   if (svc.local) { ctrl.innerHTML = ''; return; }
+
   let paths = null;
   try {
-    const r = await fetch(`http://localhost:${svc.port}/openapi.json`, {signal:AbortSignal.timeout(3000)});
+    const r = await fetch(`http://localhost:${svc.port}/openapi.json`, {signal: AbortSignal.timeout(3000)});
     if (r.ok) paths = (await r.json()).paths;
   } catch {}
 
-  if (!paths) { ctrl.innerHTML = `<div class="ctrl-row"><div class="ctrl-val" style="color:#252525;font-size:9px">—</div></div>`; return; }
+  if (!paths) {
+    ctrl.innerHTML = `<div class="cr"><div class="cv" style="color:#1e1e1e">—</div></div>`;
+    return;
+  }
 
-  const hits = Object.entries(paths).filter(([p]) =>
-    !IGNORE.has(p) && TOGGLE_KEYS.some(k => p.toLowerCase().includes(k)));
-
-  if (!hits.length) { ctrl.innerHTML = `<div class="ctrl-row"><div class="ctrl-val" style="color:#252525;font-size:9px">no controls found</div></div>`; return; }
+  const hits = Object.entries(paths).filter(([p]) => !SKIP.has(p) && TOGGLE_RE.test(p));
+  if (!hits.length) {
+    ctrl.innerHTML = `<div class="cr"><div class="cv" style="color:#1e1e1e">no controls found</div></div>`;
+    return;
+  }
 
   ctrl.innerHTML = hits.map(([path, methods]) => {
-    const lbl = path.replace(/^\//,'').replace(/[/_]/g,' ');
+    const lbl      = path.replace(/^\//,'').replace(/[/_]/g,' ');
     const isToggle = /toggle|tick|auto/i.test(path);
     const hasPost  = 'post' in methods;
     const hasGet   = 'get'  in methods;
-    const sid = `${svc.id}-${path.replace(/\W/g,'')}`;
-    let html = `<div class="ctrl-row"><div class="ctrl-lbl" title="${path}">${lbl}</div>`;
+    const sid      = `${svc.id}${path.replace(/\W/g,'')}`;
+    let h = `<div class="cr"><div class="cl" title="${path}">${lbl}</div>`;
     if (hasPost && isToggle) {
-      html += `<div class="pill">
-        <button class="p-btn" onclick="callApi(${svc.port},'${path}',{action:'on'})">ON</button>
-        <button class="p-btn" onclick="callApi(${svc.port},'${path}',{action:'off'})">OFF</button>
+      h += `<div class="pill">
+        <button class="pb" onclick="callApi(${svc.port},'${path}',{action:'on'})">ON</button>
+        <button class="pb" onclick="callApi(${svc.port},'${path}',{action:'off'})">OFF</button>
       </div>`;
     } else if (hasPost) {
-      html += `<button class="act-btn" onclick="callApi(${svc.port},'${path}',{})">run</button>`;
+      h += `<button class="ab" onclick="callApi(${svc.port},'${path}',{})">run</button>`;
     }
     if (hasGet) {
-      html += `<button class="act-btn" onclick="getApi(${svc.port},'${path}','gv-${sid}')">get</button>
-               <span class="ctrl-val" id="gv-${sid}"></span>`;
+      h += `<button class="ab" onclick="getApi(${svc.port},'${path}','gv${sid}')">get</button>
+            <span class="cv" id="gv${sid}"></span>`;
     }
-    return html + '</div>';
+    return h + '</div>';
   }).join('');
 }
 
@@ -311,14 +276,13 @@ async function getApi(port, path, spanId) {
     const r = await fetch(`http://localhost:${port}${path}`, {signal:AbortSignal.timeout(3000)});
     let val = await r.text();
     try { val = JSON.stringify(JSON.parse(val)); } catch {}
-    if (el) el.textContent = val.substring(0,60);
+    if (el) el.textContent = val.slice(0, 60);
   } catch { if (el) el.textContent = 'err'; }
 }
 
-/* ── init ── */
 poll();
 setInterval(poll, 10000);
-SVCS.forEach(discoverControls);
+SVCS.forEach(discover);
 </script>
 </body>
 </html>
