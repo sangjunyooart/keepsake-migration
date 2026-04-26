@@ -14,6 +14,8 @@ from monitoring.health import (
 _FILE_DIR = Path(__file__).resolve().parent
 ARTWORK_ROOT = _FILE_DIR.parent.parent / "artwork"
 HELPER_ROOT = _FILE_DIR.parent
+MAC_ROOT = _FILE_DIR.parent.parent / "mac"
+CUSTODIAN_STATE = _FILE_DIR.parent / "custodian" / "state"
 
 import os
 _tz_name = os.environ.get("KEEPSAKE_TIMEZONE", "America/New_York")
@@ -158,6 +160,64 @@ def _all_runtime_states() -> dict:
 def _all_token_usage() -> dict:
     return {name: load_token_usage(name, ARTWORK_ROOT) for name in LENS_NAMES}
 
+
+def _load_custodian_state() -> dict | None:
+    state_file = CUSTODIAN_STATE / "current.json"
+    if not state_file.exists():
+        return None
+    try:
+        return json.loads(state_file.read_text())
+    except Exception:
+        return None
+
+
+def _count_incidents_today() -> int:
+    incidents_file = CUSTODIAN_STATE / "incidents.jsonl"
+    if not incidents_file.exists():
+        return 0
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    count = 0
+    try:
+        with incidents_file.open() as f:
+            for line in f:
+                if today in line:
+                    count += 1
+    except OSError:
+        pass
+    return count
+
+
+def _load_quarantine_items() -> list[dict]:
+    quarantine_root = MAC_ROOT / "corpus" / "quarantine"
+    if not quarantine_root.exists():
+        return []
+    items = []
+    for qdir in sorted(quarantine_root.iterdir(), reverse=True):
+        if not qdir.is_dir():
+            continue
+        for meta_file in qdir.glob("*.meta.json"):
+            try:
+                meta = json.loads(meta_file.read_text())
+                chunk_file = qdir / meta_file.name.replace(".meta.json", "")
+                preview = ""
+                if chunk_file.exists():
+                    try:
+                        preview = chunk_file.read_text(errors="replace")[:300]
+                    except OSError:
+                        pass
+                items.append({
+                    "qid": qdir.name,
+                    "filename": chunk_file.name,
+                    "lens": meta.get("lens", ""),
+                    "quarantined_at": meta.get("quarantined_at", ""),
+                    "reason": meta.get("reason", ""),
+                    "preview": preview,
+                    "chunk_exists": chunk_file.exists(),
+                })
+            except Exception:
+                continue
+    return items
+
 # ── CSS ───────────────────────────────────────────────────────────────────────
 
 _CSS = """
@@ -214,6 +274,19 @@ td.skip{color:#333}
 .footer{margin-top:32px;font-size:10px;color:#222;text-align:center}
 .summary{font-size:11px;color:#333;margin-top:16px}
 @media(max-width:480px){.metrics{grid-template-columns:1fr 1fr}.topbar{flex-direction:column}}
+.cust-pill{display:inline-block;padding:3px 8px;border-radius:2px;font-size:10px;margin:2px;letter-spacing:.04em;text-transform:uppercase}
+.cust-pill.info{background:#0a140a;border:1px solid #1a3a1a;color:#3a7a3a}
+.cust-pill.warning{background:#14100a;border:1px solid #3a2800;color:#8a6010}
+.cust-pill.critical{background:#140000;border:1px solid #4a0000;color:#aa2020}
+.cust-pill.unknown{background:#0e0e0e;border:1px solid #1c1c1c;color:#333}
+.cust-overall-info{color:#3a7a3a}.cust-overall-warn{color:#8a6010}.cust-overall-crit{color:#aa2020}
+.qitem{background:#0a0a0a;border:1px solid #1a1a1a;border-radius:2px;padding:12px;margin-bottom:8px}
+.qitem-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.qactions{display:flex;gap:6px}
+.btn-restore{border-color:#2a4a2a;color:#4a7a5a}
+.btn-restore:hover{border-color:#3a6a3a;color:#6aaa6a}
+.incident-row{display:flex;gap:8px;font-size:11px;padding:6px 0;border-bottom:1px solid #111;align-items:flex-start}
+.inc-sev-warning{color:#8a6010}.inc-sev-critical{color:#aa2020}.inc-sev-info{color:#3a7a3a}
 """
 
 _REFRESH_JS = """<script>
@@ -276,6 +349,39 @@ _DASH_TMPL = """<!DOCTYPE html>
 {% endfor %}
 
 <p class="summary">{{ n_online }} / {{ n_total }} lenses online</p>
+
+<div class="card" style="margin-top:20px;border-color:#1a1a1a">
+  <div class="card-head">
+    <span style="font-size:11px;color:#3a3a3a;letter-spacing:.1em;text-transform:uppercase">Custodian</span>
+    <a href="{{ P }}/custodian/" style="font-size:10px;color:#2a2a2a">details &rarr;</a>
+  </div>
+  {% if custodian_state %}
+  <div style="margin-bottom:10px">
+    {% for check_name, r in custodian_state.checks.items() %}
+    <a href="{{ P }}/custodian/" style="text-decoration:none">
+    <span class="cust-pill {{ r.severity }}" title="{{ r.summary }}">{{ check_name.replace('_',' ') }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  <div class="row">
+    <span class="lbl">overall</span>
+    <span class="val cust-overall-{{ custodian_state.overall_severity[:4] }}">{{ custodian_state.overall_severity }}</span>
+  </div>
+  <div class="row">
+    <span class="lbl">last check</span>
+    <span class="val">{{ cust_rel_time }}</span>
+  </div>
+  {% if cust_incidents_today > 0 %}
+  <div class="row">
+    <span class="lbl">incidents today</span>
+    <span class="val status-warn">{{ cust_incidents_today }}</span>
+  </div>
+  {% endif %}
+  {% else %}
+  <p style="font-size:11px;color:#2a2a2a">Not running &mdash; start com.keepsake.custodian</p>
+  {% endif %}
+</div>
+
 <p class="footer">Sangjun Yoo &mdash; Keepsake in Every Hair ~ Migration, 2026</p>
 {{ refresh_js | safe }}
 </body></html>"""
@@ -407,9 +513,15 @@ def dashboard_home():
     health = {n: get_health_status(n, lenses[n], runtime_states[n], token_usage[n]) for n in LENS_NAMES}
     rel_times = {n: _relative_time(lenses[n].get("training", {}).get("last_training")) for n in LENS_NAMES}
     n_online = sum(1 for d in lenses.values() if not d.get("error"))
+    custodian_state = _load_custodian_state()
+    cust_rel_time = _relative_time(custodian_state["timestamp"]) if custodian_state else ""
+    cust_incidents_today = _count_incidents_today()
     return _render(_DASH_TMPL, lens_names=LENS_NAMES, lenses=lenses,
                    health=health, rel_times=rel_times,
-                   n_online=n_online, n_total=len(LENS_NAMES))
+                   n_online=n_online, n_total=len(LENS_NAMES),
+                   custodian_state=custodian_state,
+                   cust_rel_time=cust_rel_time,
+                   cust_incidents_today=cust_incidents_today)
 
 
 @app.route(f"{P}/lens/<lens_name>")
@@ -497,6 +609,223 @@ def api_budget():
         b = s.get("daily_token_budget", 50)
         result[n] = {"daily_budget": b, "used_today": tu[n], "remaining": max(0, b - tu[n])}
     return flask_jsonify({"timestamp": _now_local(), "budgets": result})
+
+
+@app.route(f"{P}/api/custodian")
+def api_custodian():
+    state = _load_custodian_state()
+    if not state:
+        return flask_jsonify({"running": False}), 200
+    return flask_jsonify({"running": True, **state})
+
+
+# ── Custodian pages ───────────────────────────────────────────────────────────
+
+_CUSTODIAN_TMPL = """<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Custodian &mdash; Keepsake</title><style>{{ css | safe }}</style></head>
+<body>
+<a class="back" href="{{ P }}/">&larr; dashboard</a>
+<div class="topbar">
+  <div><h1>CUSTODIAN</h1><p class="sub">{{ now }} &nbsp;&middot;&nbsp; stewarding agent</p></div>
+  <div class="topbar-right">
+    <a href="{{ P }}/custodian/incidents" class="btn">incidents</a>
+    <a href="{{ P }}/custodian/quarantine" class="btn">quarantine</a>
+  </div>
+</div>
+
+{% if not state %}
+<div class="card offline">
+  <p style="font-size:12px;color:#444">Custodian is not running.<br>
+  Start with: <code>python -m helper.custodian.runner</code><br>
+  Or install launchd: <code>mac/launchd/com.keepsake.custodian.plist</code></p>
+</div>
+{% else %}
+<div class="card" style="border-left:2px solid {% if state.overall_severity == 'info' %}#1a3a1a{% elif state.overall_severity == 'warning' %}#3a2800{% else %}#4a0000{% endif %}">
+  <div class="row"><span class="lbl">overall</span><span class="val cust-overall-{{ state.overall_severity[:4] }}">{{ state.overall_severity }}</span></div>
+  <div class="row"><span class="lbl">last check</span><span class="val">{{ state.timestamp }}</span></div>
+</div>
+
+{% for check_name, r in state.checks.items() %}
+<h2>{{ check_name.replace('_', ' ') }}</h2>
+<div class="card {% if r.severity == 'info' %}online{% elif r.severity == 'warning' %}{% else %}offline{% endif %}"
+     style="border-left:2px solid {% if r.severity == 'info' %}#1a3a1a{% elif r.severity == 'warning' %}#3a2800{% else %}#4a0000{% endif %}">
+  <div class="card-head">
+    <span class="lens-status {% if r.severity == 'info' %}status-ok{% elif r.severity == 'warning' %}status-warn{% else %}status-err{% endif %}">{{ r.severity }}</span>
+    <span style="font-size:10px;color:#333">{{ r.timestamp[:19] }}</span>
+  </div>
+  <p style="font-size:12px;color:#888;margin-bottom:8px">{{ r.summary }}</p>
+  {% if r.auto_action %}
+  <p style="font-size:11px;color:#6a3a00;margin-bottom:8px">→ {{ r.auto_action }}</p>
+  {% endif %}
+  {% if r.details %}
+  <div style="font-size:10px;color:#333;font-family:monospace;white-space:pre-wrap;max-height:120px;overflow:auto">{{ r.details | tojson(indent=2) }}</div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+<p class="footer">Sangjun Yoo &mdash; Keepsake in Every Hair ~ Migration, 2026</p>
+{{ refresh_js | safe }}
+</body></html>"""
+
+_INCIDENTS_TMPL = """<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Incidents &mdash; Keepsake Custodian</title><style>{{ css | safe }}</style></head>
+<body>
+<a class="back" href="{{ P }}/custodian/">&larr; custodian</a>
+<h1>INCIDENTS</h1>
+<p class="sub">Last 7 days &mdash; warnings and criticals only</p>
+
+{% if not incidents %}
+<div class="card"><p style="font-size:11px;color:#333">No incidents in last 7 days.</p></div>
+{% else %}
+{% for inc in incidents %}
+<div class="incident-row">
+  <span class="inc-sev-{{ inc.severity }}">{{ inc.severity[:4].upper() }}</span>
+  <span style="color:#333;flex:0 0 120px">{{ inc.timestamp[:16] }}</span>
+  <span style="color:#555;flex:0 0 140px">{{ inc.check_name.replace('_',' ') }}</span>
+  <span style="color:#444;flex:1">{{ inc.summary }}</span>
+</div>
+{% endfor %}
+{% endif %}
+
+<p class="footer">Sangjun Yoo &mdash; Keepsake in Every Hair ~ Migration, 2026</p>
+</body></html>"""
+
+_QUARANTINE_TMPL = """<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Quarantine &mdash; Keepsake Custodian</title><style>{{ css | safe }}</style></head>
+<body>
+<a class="back" href="{{ P }}/custodian/">&larr; custodian</a>
+<h1>QUARANTINE REVIEW</h1>
+<p class="sub">Auto-quarantined chunks requiring artist review</p>
+
+{% if not items %}
+<div class="card"><p style="font-size:11px;color:#333">No quarantined items.</p></div>
+{% else %}
+{% for item in items %}
+<div class="qitem">
+  <div class="qitem-head">
+    <div>
+      <span style="font-size:12px;color:#8a4040">{{ item.filename }}</span>
+      <span style="font-size:10px;color:#333;margin-left:8px">{{ item.lens }} &middot; {{ item.quarantined_at[:19] }}</span>
+    </div>
+    {% if item.chunk_exists %}
+    <div class="qactions">
+      <form method="POST" action="{{ P }}/custodian/quarantine/{{ item.qid }}/restore" style="display:inline">
+        <button type="submit" class="btn btn-restore" style="min-height:32px;padding:4px 10px">restore</button>
+      </form>
+      <form method="POST" action="{{ P }}/custodian/quarantine/{{ item.qid }}/delete"
+            onsubmit="return confirm('Permanently delete this chunk?')">
+        <button type="submit" class="btn btn-danger" style="min-height:32px;padding:4px 10px">delete</button>
+      </form>
+    </div>
+    {% else %}
+    <span style="font-size:10px;color:#333">already removed</span>
+    {% endif %}
+  </div>
+  <div style="font-size:10px;color:#3a2a2a;margin-bottom:6px">reason: {{ item.reason }}</div>
+  {% if item.preview %}
+  <pre style="font-size:10px;color:#333;background:#080808;padding:8px;overflow-x:auto;max-height:80px;border:1px solid #1a1a1a">{{ item.preview }}</pre>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+<p class="footer">Sangjun Yoo &mdash; Keepsake in Every Hair ~ Migration, 2026</p>
+</body></html>"""
+
+
+@app.route(f"{P}/custodian/")
+@app.route(f"{P}/custodian", strict_slashes=False)
+def custodian_overview():
+    state = _load_custodian_state()
+    return _render(_CUSTODIAN_TMPL, state=state)
+
+
+@app.route(f"{P}/custodian/incidents")
+def custodian_incidents():
+    from datetime import timedelta
+    incidents_file = CUSTODIAN_STATE / "incidents.jsonl"
+    incidents = []
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    if incidents_file.exists():
+        try:
+            with incidents_file.open() as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        if rec.get("timestamp", "") >= cutoff[:19]:
+                            incidents.append(rec)
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            pass
+    incidents.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
+    return _render(_INCIDENTS_TMPL, incidents=incidents)
+
+
+@app.route(f"{P}/custodian/quarantine")
+def custodian_quarantine():
+    items = _load_quarantine_items()
+    return _render(_QUARANTINE_TMPL, items=items)
+
+
+@app.route(f"{P}/custodian/quarantine/<qid>/restore", methods=["POST"])
+def quarantine_restore(qid: str):
+    quarantine_dir = MAC_ROOT / "corpus" / "quarantine" / qid
+    if not quarantine_dir.exists():
+        return "Quarantine dir not found", 404
+
+    restored = []
+    for meta_file in quarantine_dir.glob("*.meta.json"):
+        try:
+            meta = json.loads(meta_file.read_text())
+            lens = meta.get("lens", "")
+            chunk_file = quarantine_dir / meta_file.name.replace(".meta.json", "")
+            if not chunk_file.exists():
+                continue
+            dest_dir = MAC_ROOT / "corpus" / "processed" / lens
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            chunk_file.rename(dest_dir / chunk_file.name)
+            meta_file.unlink(missing_ok=True)
+            restored.append(lens)
+
+            # Re-enable training if paused_by custodian
+            runtime_path = MAC_ROOT / "runtime_state" / f"{lens}.json"
+            if runtime_path.exists():
+                state = json.loads(runtime_path.read_text())
+                if state.get("paused_by") == "custodian":
+                    state["training_enabled"] = True
+                    state.pop("paused_by", None)
+                    state.pop("paused_reason", None)
+                    state.pop("paused_at", None)
+                    runtime_path.write_text(json.dumps(state, indent=2))
+        except Exception:
+            pass
+
+    try:
+        quarantine_dir.rmdir()  # only removes if empty
+    except OSError:
+        pass
+
+    return redirect(f"{P}/custodian/quarantine")
+
+
+@app.route(f"{P}/custodian/quarantine/<qid>/delete", methods=["POST"])
+def quarantine_delete(qid: str):
+    import shutil
+    quarantine_dir = MAC_ROOT / "corpus" / "quarantine" / qid
+    if quarantine_dir.exists():
+        shutil.rmtree(quarantine_dir)
+    return redirect(f"{P}/custodian/quarantine")
 
 
 if __name__ == "__main__":

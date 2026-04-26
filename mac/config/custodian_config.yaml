@@ -1,0 +1,38 @@
+custodian:
+  check_interval_seconds: 3600  # hourly
+
+  daily_email:
+    enabled: true
+    time_of_day: "09:00"
+    timezone: "Asia/Seoul"
+
+  telegram:
+    enabled: true
+    rate_limit_per_critical_type_seconds: 21600  # 6 hours
+
+  thresholds:
+    system_activity:
+      warning_multiplier: 3.0   # warn at expected_interval × 3
+      critical_multiplier: 6.0  # critical at × 6, or all lenses idle 24h
+
+    training_progress:
+      warning_no_training_days: 7
+      critical_no_training_days: 14
+      over_training_per_hour_threshold: 1
+
+    data_flow:
+      warning_no_data_days: 7
+      critical_no_data_days: 14
+
+    pi_sync:
+      warning_versions_behind: 2
+      critical_unreachable_hours: 24
+      critical_consecutive_push_failures: 5
+
+    ethics_boundary:
+      sample_size_per_check: 50
+      warning_no_rejections_days: 7
+
+  quarantine:
+    auto_pause_lens_training: true
+    require_artist_review: true
