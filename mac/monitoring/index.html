@@ -114,12 +114,12 @@ html,body{height:100vh;display:flex;flex-direction:column;overflow:hidden;
 
 <script>
 const SVCS = [
-  {id:'ar',  name:'drift · AR',  port:8000, path:'/admin'},
-  {id:'en',  name:'drift · EN',  port:8001, path:'/admin'},
-  {id:'gr',  name:'drift · GR',  port:8002, path:'/admin'},
-  {id:'br',  name:'drift · BR',  port:8003, path:'/admin'},
-  {id:'px',  name:'parallax',    port:8765, path:'/admin'},
-  {id:'mon', name:'monitor',     port:8080, path:'/monitor', local:true},
+  {id:'ar',  name:'drift · AR',  port:8000, path:'/admin', main:'/'},
+  {id:'en',  name:'drift · EN',  port:8001, path:'/admin', main:'/'},
+  {id:'gr',  name:'drift · GR',  port:8002, path:'/admin', main:'/'},
+  {id:'br',  name:'drift · BR',  port:8003, path:'/admin', main:'/'},
+  {id:'px',  name:'parallax',    port:8765, path:'/admin', main:'/'},
+  {id:'mon', name:'monitor',     port:8080, path:'/monitor', main:'/monitor', local:true},
 ];
 const TOGGLE_RE = /toggle|auto|tick|drift|start|stop|enable|disable|run|pause/i;
 const SKIP = new Set(['/openapi.json','/docs','/redoc','/favicon.ico','/']);
@@ -151,13 +151,13 @@ SVCS.forEach(svc => {
   chip.innerHTML = `<span class="code wait" id="sc-${svc.id}">—</span><span style="color:#252525">${svc.name}</span>`;
   strip.insertBefore(chip, clock);
 
-  // overview card
+  // overview card — clicks open main page, not admin
   const card = document.createElement('div');
   card.className = 'card';
-  card.dataset.target = svc.id;
+  card.dataset.main = svc.id;
   card.innerHTML = `
     <div class="top">
-      <div><div class="c-name">${svc.name}</div><div class="c-url">:${svc.port}${svc.path !== '/' ? svc.path : ''}</div></div>
+      <div><div class="c-name">${svc.name}</div><div class="c-url">:${svc.port}/</div></div>
       <div class="c-code wait" id="cc-${svc.id}">—</div>
     </div>
     <div class="card-ctrls" id="ctrl-${svc.id}">
@@ -166,14 +166,15 @@ SVCS.forEach(svc => {
   ov.appendChild(card);
 });
 
-// single click handler via delegation
+// click delegation: tabs use data-target (admin), cards use data-main (main page)
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-target]');
-  if (!el) return;
-  switchTo(el.dataset.target);
+  const tab  = e.target.closest('[data-target]');
+  const card = e.target.closest('[data-main]');
+  if (tab)       switchTo(tab.dataset.target, 'admin');
+  else if (card) switchTo(card.dataset.main,  'main');
 });
 
-function switchTo(id) {
+function switchTo(id, mode) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
 
   if (id === 'home') {
@@ -183,13 +184,13 @@ function switchTo(id) {
     return;
   }
 
-  const svc = SVCS.find(s => s.id === id);
+  const svc  = SVCS.find(s => s.id === id);
+  const dest = mode === 'admin' ? svc.path : svc.main;
+  const url  = `http://localhost:${svc.port}${dest}`;
+
   document.getElementById(`tab-${id}`).classList.add('active');
   ov.style.display     = 'none';
   viewer.style.display = 'block';
-  const url = svc.local
-    ? `http://localhost:8080/monitor`
-    : `http://localhost:${svc.port}${svc.path}`;
   viewer.src = url;
 }
 
