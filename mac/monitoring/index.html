@@ -118,7 +118,7 @@ const SVCS = [
   {id:'en',  name:'drift · EN',  port:8001, path:'/admin', main:'/'},
   {id:'gr',  name:'drift · GR',  port:8002, path:'/admin', main:'/'},
   {id:'br',  name:'drift · BR',  port:8003, path:'/admin', main:'/'},
-  {id:'px',  name:'parallax',    port:8765, path:'/admin', main:'/admin'},
+  {id:'px',  name:'parallax',    port:8765, path:'/admin', main:null},
   {id:'mon', name:'monitor',     port:8080, path:'/monitor', main:'/monitor', local:true},
 ];
 const TOGGLE_RE = /toggle|auto|tick|drift|start|stop|enable|disable|run|pause/i;
@@ -151,10 +151,10 @@ SVCS.forEach(svc => {
   chip.innerHTML = `<span class="code wait" id="sc-${svc.id}">—</span><span style="color:#252525">${svc.name}</span>`;
   strip.insertBefore(chip, clock);
 
-  // overview card — clicks open main page, not admin
+  // overview card — clicks open main page, not admin (if main is set)
   const card = document.createElement('div');
   card.className = 'card';
-  card.dataset.main = svc.id;
+  if (svc.main) card.dataset.main = svc.id;
   card.innerHTML = `
     <div class="top">
       <div><div class="c-name">${svc.name}</div><div class="c-url">:${svc.port}/</div></div>
