@@ -89,6 +89,13 @@ html,body{height:100vh;display:flex;flex-direction:column;overflow:hidden;
 .ab:hover{background:#222;color:#aaa;border-color:#333}
 .cv{font-size:9px;color:#333;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+/* museum shortcuts */
+.mus-row{display:flex;flex-wrap:wrap;gap:4px;border-top:1px solid #181818;padding-top:8px}
+.mb{padding:2px 7px;font-size:9px;font-family:inherit;cursor:pointer;
+    border:1px solid #1e1e1e;border-radius:3px;background:#0c0c0c;color:#333;
+    transition:all .1s;white-space:nowrap}
+.mb:hover{background:#181818;color:#888;border-color:#333}
+
 /* shared iframe — kept for /monitor only */
 #viewer{flex:1;display:none;border:none;background:#fff;width:100%}
 </style>
@@ -114,12 +121,20 @@ html,body{height:100vh;display:flex;flex-direction:column;overflow:hidden;
 
 <script>
 const SVCS = [
-  {id:'ar',  name:'drift · AR',  port:8000, path:'/admin', main:'/'},
-  {id:'en',  name:'drift · EN',  port:8001, path:'/admin', main:'/'},
-  {id:'gr',  name:'drift · GR',  port:8002, path:'/admin', main:'/'},
-  {id:'br',  name:'drift · BR',  port:8003, path:'/admin', main:'/'},
+  {id:'ar',  name:'drift · AR',  port:8000, path:'/admin', main:'/', museums:true},
+  {id:'en',  name:'drift · EN',  port:8001, path:'/admin', main:'/', museums:true},
+  {id:'gr',  name:'drift · GR',  port:8002, path:'/admin', main:'/', museums:true},
+  {id:'br',  name:'drift · BR',  port:8003, path:'/admin', main:'/', museums:true},
   {id:'px',  name:'parallax',    port:8765, path:'/admin', main:'/'},
   {id:'mon', name:'monitor',     port:8080, path:'/monitor', main:'/monitor', local:true},
+];
+const MUSEUM_SCREENS = [
+  {path:'/museum/human',           label:'human'},
+  {path:'/museum/liminal',         label:'liminal'},
+  {path:'/museum/environment',     label:'env'},
+  {path:'/museum/digital',         label:'digital'},
+  {path:'/museum/infrastructure',  label:'infra'},
+  {path:'/museum/more_than_human', label:'mth'},
 ];
 const TOGGLE_RE = /toggle|auto|tick|drift|start|stop|enable|disable|run|pause/i;
 const SKIP = new Set(['/openapi.json','/docs','/redoc','/favicon.ico','/']);
@@ -155,6 +170,10 @@ SVCS.forEach(svc => {
   const card = document.createElement('div');
   card.className = 'card';
   card.dataset.main = svc.id;
+  const musHtml = svc.museums ? `
+    <div class="mus-row">${MUSEUM_SCREENS.map(m =>
+      `<button class="mb" onclick="openIframe(${svc.port},'${m.path}',event)">${m.label}</button>`
+    ).join('')}</div>` : '';
   card.innerHTML = `
     <div class="top">
       <div><div class="c-name">${svc.name}</div><div class="c-url">:${svc.port}/</div></div>
@@ -162,7 +181,8 @@ SVCS.forEach(svc => {
     </div>
     <div class="card-ctrls" id="ctrl-${svc.id}">
       <div class="cr"><div class="cv" style="color:#1e1e1e;font-size:9px">discovering api…</div></div>
-    </div>`;
+    </div>
+    ${musHtml}`;
   ov.appendChild(card);
 });
 
@@ -267,6 +287,14 @@ async function discover(svc) {
     }
     return h + '</div>';
   }).join('');
+}
+
+function openIframe(port, path, e) {
+  e.stopPropagation();
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  ov.style.display     = 'none';
+  viewer.style.display = 'block';
+  viewer.src = `http://localhost:${port}${path}`;
 }
 
 async function callApi(port, path, body) {
