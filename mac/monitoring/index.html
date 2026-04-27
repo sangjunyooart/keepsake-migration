@@ -121,10 +121,10 @@ html,body{height:100vh;display:flex;flex-direction:column;overflow:hidden;
 
 <script>
 const SVCS = [
-  {id:'ar',  name:'drift · AR',  port:8000, path:'/admin', main:'/', museums:true},
-  {id:'en',  name:'drift · EN',  port:8001, path:'/admin', main:'/', museums:true},
-  {id:'gr',  name:'drift · GR',  port:8002, path:'/admin', main:'/', museums:true},
-  {id:'br',  name:'drift · BR',  port:8003, path:'/admin', main:'/', museums:true},
+  {id:'ar',  name:'drift · AR',  port:8000, path:'/admin', main:'/', museums:true, domain:'ar.keepsake-drift.net'},
+  {id:'en',  name:'drift · EN',  port:8001, path:'/admin', main:'/', museums:true, domain:'en.keepsake-drift.net'},
+  {id:'gr',  name:'drift · GR',  port:8002, path:'/admin', main:'/', museums:true, domain:'gr.keepsake-drift.net'},
+  {id:'br',  name:'drift · BR',  port:8003, path:'/admin', main:'/', museums:true, domain:'br.keepsake-drift.net'},
   {id:'px',  name:'parallax',    port:8765, path:'/admin', main:'/'},
   {id:'mon', name:'monitor',     port:8080, path:'/monitor', main:'/monitor', local:true},
 ];
@@ -205,13 +205,15 @@ function switchTo(id, mode) {
   }
 
   const svc  = SVCS.find(s => s.id === id);
-  const url  = `http://localhost:${svc.port}${mode === 'admin' ? svc.path : svc.main}`;
 
   if (mode === 'main') {
+    const url = svc.domain ? `https://${svc.domain}${svc.main}` : `http://localhost:${svc.port}${svc.main}`;
     window.open(url, '_blank');
     document.getElementById('tab-home').classList.add('active');
     return;
   }
+
+  const url = `http://localhost:${svc.port}${svc.path}`;
 
   document.getElementById(`tab-${id}`).classList.add('active');
   ov.style.display     = 'none';
@@ -296,7 +298,9 @@ async function discover(svc) {
 
 function openWindow(port, path, e) {
   e.stopPropagation();
-  window.open(`http://localhost:${port}${path}`, '_blank');
+  const svc = SVCS.find(s => s.port === port);
+  const url = svc && svc.domain ? `https://${svc.domain}${path}` : `http://localhost:${port}${path}`;
+  window.open(url, '_blank');
 }
 
 async function callApi(port, path, body) {
