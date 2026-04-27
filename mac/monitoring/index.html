@@ -172,7 +172,7 @@ SVCS.forEach(svc => {
   card.dataset.main = svc.id;
   const musHtml = svc.museums ? `
     <div class="mus-row">${MUSEUM_SCREENS.map(m =>
-      `<button class="mb" onclick="openIframe(${svc.port},'${m.path}',event)">${m.label}</button>`
+      `<button class="mb" onclick="openWindow(${svc.port},'${m.path}',event)">${m.label}</button>`
     ).join('')}</div>` : '';
   card.innerHTML = `
     <div class="top">
@@ -205,8 +205,13 @@ function switchTo(id, mode) {
   }
 
   const svc  = SVCS.find(s => s.id === id);
-  const dest = mode === 'admin' ? svc.path : svc.main;
-  const url  = `http://localhost:${svc.port}${dest}`;
+  const url  = `http://localhost:${svc.port}${mode === 'admin' ? svc.path : svc.main}`;
+
+  if (mode === 'main') {
+    window.open(url, '_blank');
+    document.getElementById('tab-home').classList.add('active');
+    return;
+  }
 
   document.getElementById(`tab-${id}`).classList.add('active');
   ov.style.display     = 'none';
@@ -289,12 +294,9 @@ async function discover(svc) {
   }).join('');
 }
 
-function openIframe(port, path, e) {
+function openWindow(port, path, e) {
   e.stopPropagation();
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  ov.style.display     = 'none';
-  viewer.style.display = 'block';
-  viewer.src = `http://localhost:${port}${path}`;
+  window.open(`http://localhost:${port}${path}`, '_blank');
 }
 
 async function callApi(port, path, body) {
