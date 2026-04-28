@@ -31,6 +31,10 @@
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>OPENAI_AUTO_TICK</key>
         <string>false</string>
+        <key>KD_SECOND_LANG</key>
+        <string>pt-br</string>
+        <key>ENABLE_ARABIC</key>
+        <string>1</string>
     </dict>
 
     <key>ThrottleInterval</key>
