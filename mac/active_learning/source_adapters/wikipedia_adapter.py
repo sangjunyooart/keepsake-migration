@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 
 SEARCH_URL = "https://en.wikipedia.org/w/api.php"
 TIMEOUT = 10
+_HEADERS = {
+    "User-Agent": "Keepsake-Migration/1.0 (AI art installation research; https://github.com/sangjunyooart/keepsake-migration)"
+}
 
 
 @dataclass
@@ -32,7 +35,7 @@ class WikipediaAdapter:
             "utf8": 1,
         }
         try:
-            resp = requests.get(SEARCH_URL, params=params, timeout=TIMEOUT)
+            resp = requests.get(SEARCH_URL, params=params, headers=_HEADERS, timeout=TIMEOUT)
             resp.raise_for_status()
             data = resp.json()
             results = []
@@ -57,7 +60,7 @@ class WikipediaAdapter:
             "format": "json",
         }
         try:
-            resp = requests.get(SEARCH_URL, params=params, timeout=TIMEOUT)
+            resp = requests.get(SEARCH_URL, params=params, headers=_HEADERS, timeout=TIMEOUT)
             resp.raise_for_status()
             data = resp.json()
             pages = data.get("query", {}).get("pages", {})
