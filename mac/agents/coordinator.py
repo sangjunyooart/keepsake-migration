@@ -74,33 +74,21 @@ class AgentCoordinator:
 
     def _execute_queries(self, lens_name: str, queries: list[str]) -> int:
         """Run agent-generated queries through Wikipedia search → corpus."""
-        from mac.active_learning.search_orchestrator import SearchOrchestrator
-        from mac.active_learning.result_evaluator import ResultEvaluator
+        from mac.active_learning.source_adapters.wikipedia_adapter import WikipediaAdapter
         from mac.data_pipeline.collect import FeedCollector
-        from mac.active_learning.self_assessment import Gap
 
-        orchestrator = SearchOrchestrator()
-        evaluator = ResultEvaluator(lens_name)
+        adapter = WikipediaAdapter()
         collector = FeedCollector(lens_name, self.mac_root / "corpus" / "raw")
 
         added = 0
         for query in queries:
-            # Wrap query as a Gap object (SearchOrchestrator expects this)
-            synthetic_gap = Gap(
-                period="",
-                location="",
-                country="",
-                current_coverage=0.0,
-                priority=1.0,
-                suggested_topics=[query],
-                lens_type=lens_name,
-            )
             try:
-                results = orchestrator.search_gap(synthetic_gap)
-                evaluated = evaluator.evaluate(results, [query])
-                for item in evaluated[: self._max_results_per_query]:
-                    text = item.get("text", "")
-                    source = f"{item.get('source','wikipedia')}:{item.get('title','')}"
+                results = adapter.search(query, max_results=self._max_results_per_query)
+                for result in results:
+                    text = adapter.fetch_content(result)
+                    if not text:
+                        continue
+                    source = f"wikipedia:{result.title}"
                     if collector.add_text(text, source=source):
                         added += 1
             except Exception as exc:
