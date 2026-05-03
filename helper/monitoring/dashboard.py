@@ -161,6 +161,32 @@ def _all_token_usage() -> dict:
     return {name: load_token_usage(name, ARTWORK_ROOT) for name in LENS_NAMES}
 
 
+def _load_agent_states() -> dict:
+    """Read mac/runtime_state/agent_{lens}.json for all lenses."""
+    states = {}
+    for lens_name in LENS_NAMES:
+        state_path = MAC_ROOT / "runtime_state" / f"agent_{lens_name}.json"
+        if state_path.exists():
+            try:
+                states[lens_name] = json.loads(state_path.read_text())
+            except Exception:
+                states[lens_name] = {"status": "error", "lens_name": lens_name}
+        else:
+            states[lens_name] = {"status": "idle", "lens_name": lens_name}
+    return states
+
+
+def _agent_overall_status(states: dict) -> str:
+    statuses = [v.get("status", "idle") for v in states.values()]
+    if "running" in statuses:
+        return "running"
+    if "error" in statuses:
+        return "error"
+    if all(s == "idle" for s in statuses):
+        return "idle"
+    return "active"
+
+
 def _load_custodian_state() -> dict | None:
     state_file = CUSTODIAN_STATE / "current.json"
     if not state_file.exists():
@@ -274,6 +300,16 @@ td.skip{color:#333}
 .footer{margin-top:32px;font-size:10px;color:#222;text-align:center}
 .summary{font-size:11px;color:#333;margin-top:16px}
 @media(max-width:480px){.metrics{grid-template-columns:1fr 1fr}.topbar{flex-direction:column}}
+.agent-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;flex-shrink:0}
+.agent-dot.idle{background:#222}.agent-dot.running{background:#4a7a8a;animation:pulse 1s infinite}
+.agent-dot.complete{background:#2a5a2a}.agent-dot.error{background:#6a2020}.agent-dot.no_corpus{background:#3a2a00}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.agent-row{display:flex;align-items:center;font-size:11px;padding:5px 0;border-bottom:1px solid #111;gap:6px}
+.agent-lens{color:#3a5a7a;width:140px;flex-shrink:0;text-transform:uppercase;font-size:10px;letter-spacing:.04em}
+.agent-summary{color:#3a3a3a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-time{color:#2a2a2a;font-size:10px;flex-shrink:0}
+.agent-queries{margin-top:4px}
+.agent-query-pill{display:inline-block;background:#0a1020;border:1px solid #1a2a3a;color:#2a4a6a;font-size:10px;padding:2px 7px;border-radius:2px;margin:2px}
 .cust-pill{display:inline-block;padding:3px 8px;border-radius:2px;font-size:10px;margin:2px;letter-spacing:.04em;text-transform:uppercase}
 .cust-pill.info{background:#0a140a;border:1px solid #1a3a1a;color:#3a7a3a}
 .cust-pill.warning{background:#14100a;border:1px solid #3a2800;color:#8a6010}
@@ -350,7 +386,36 @@ _DASH_TMPL = """<!DOCTYPE html>
 
 <p class="summary">{{ n_online }} / {{ n_total }} lenses online</p>
 
-<div class="card" style="margin-top:20px;border-color:#1a1a1a">
+<div class="card" style="margin-top:20px;border-color:#0e1a2a">
+  <div class="card-head">
+    <span style="font-size:11px;color:#2a3a4a;letter-spacing:.1em;text-transform:uppercase">Agent Curation</span>
+    <a href="{{ P }}/agents/" style="font-size:10px;color:#2a3a4a">details &rarr;</a>
+  </div>
+  {% set overall = agent_overall %}
+  <div class="row" style="margin-bottom:8px">
+    <span class="lbl">model</span>
+    <span class="val" style="color:#2a3a4a">{{ agent_model }}</span>
+  </div>
+  {% for lens_name in lens_names %}
+  {% set ag = agent_states[lens_name] %}
+  <div class="agent-row">
+    <span class="agent-dot {{ ag.status }}"></span>
+    <span class="agent-lens">{{ lens_name.replace('_',' ') }}</span>
+    <span class="agent-summary" title="{{ ag.get('assessment','') }}">
+      {%- if ag.status == 'complete' %}{{ ag.get('assessment','')[:70] }}
+      {%- elif ag.status == 'running' %}running...
+      {%- elif ag.status == 'no_corpus' %}no corpus yet
+      {%- elif ag.status == 'error' %}{{ ag.get('error','error')[:50] }}
+      {%- else %}idle{%- endif %}
+    </span>
+    <span class="agent-time">
+      {%- if ag.get('timestamp') %}{{ rel_times_agent[lens_name] }}{%- endif %}
+    </span>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card" style="margin-top:8px;border-color:#1a1a1a">
   <div class="card-head">
     <span style="font-size:11px;color:#3a3a3a;letter-spacing:.1em;text-transform:uppercase">Custodian</span>
     <a href="{{ P }}/custodian/" style="font-size:10px;color:#2a2a2a">details &rarr;</a>
@@ -505,6 +570,15 @@ def _render(tmpl, **kw):
                                   P=P, now=_now_local(), **kw)
 
 
+def _system_agent_config() -> dict:
+    try:
+        import yaml as _yaml
+        cfg = _yaml.safe_load((MAC_ROOT / "config" / "system_config.yaml").read_text())
+        return cfg.get("system", {}).get("agent_curation", {})
+    except Exception:
+        return {}
+
+
 @app.route(f"{P}/", strict_slashes=False)
 def dashboard_home():
     lenses = _fetch_all()
@@ -516,12 +590,21 @@ def dashboard_home():
     custodian_state = _load_custodian_state()
     cust_rel_time = _relative_time(custodian_state["timestamp"]) if custodian_state else ""
     cust_incidents_today = _count_incidents_today()
+    agent_states = _load_agent_states()
+    agent_cfg = _system_agent_config()
+    rel_times_agent = {
+        n: _relative_time(agent_states[n].get("timestamp", "")) for n in LENS_NAMES
+    }
     return _render(_DASH_TMPL, lens_names=LENS_NAMES, lenses=lenses,
                    health=health, rel_times=rel_times,
                    n_online=n_online, n_total=len(LENS_NAMES),
                    custodian_state=custodian_state,
                    cust_rel_time=cust_rel_time,
-                   cust_incidents_today=cust_incidents_today)
+                   cust_incidents_today=cust_incidents_today,
+                   agent_states=agent_states,
+                   agent_overall=_agent_overall_status(agent_states),
+                   agent_model=agent_cfg.get("model", "qwen2.5:14b-instruct-q4_K_M"),
+                   rel_times_agent=rel_times_agent)
 
 
 @app.route(f"{P}/lens/<lens_name>")
@@ -609,6 +692,101 @@ def api_budget():
         b = s.get("daily_token_budget", 50)
         result[n] = {"daily_budget": b, "used_today": tu[n], "remaining": max(0, b - tu[n])}
     return flask_jsonify({"timestamp": _now_local(), "budgets": result})
+
+
+@app.route(f"{P}/api/agent-status")
+def api_agent_status():
+    return flask_jsonify({
+        "timestamp": _now_local(),
+        "config": _system_agent_config(),
+        "states": _load_agent_states(),
+    })
+
+
+_AGENTS_TMPL = """<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Agents &mdash; Keepsake</title><style>{{ css | safe }}</style></head>
+<body>
+<a class="back" href="{{ P }}/">&larr; dashboard</a>
+<div class="topbar">
+  <div><h1>AGENT CURATION</h1>
+  <p class="sub">{{ now }} &nbsp;&middot;&nbsp; model: {{ cfg.model }} &nbsp;&middot;&nbsp;
+  {% if cfg.enabled %}<span class="status-ok">enabled</span>{% else %}<span class="status-err">disabled</span>{% endif %}
+  </p></div>
+</div>
+
+{% for lens_name in lens_names %}
+{% set ag = states[lens_name] %}
+<h2>{{ lens_name.replace('_',' ') }}</h2>
+<div class="card" style="border-left:2px solid
+  {%- if ag.status == 'complete' %} #1a3a1a
+  {%- elif ag.status == 'running' %} #1a2a3a
+  {%- elif ag.status == 'error' %}   #3a1a1a
+  {%- else %} #1a1a1a{%- endif %}">
+  <div class="card-head">
+    <span style="display:flex;align-items:center">
+      <span class="agent-dot {{ ag.status }}"></span>
+      <span class="lens-status
+        {%- if ag.status == 'complete' %} status-ok
+        {%- elif ag.status == 'running' %} status-warn
+        {%- elif ag.status == 'error' %} status-err
+        {%- else %} status-off{%- endif %}">{{ ag.status }}</span>
+    </span>
+    {% if ag.get('timestamp') %}<span style="font-size:10px;color:#2a2a2a">{{ ag.timestamp[:19] }}</span>{% endif %}
+  </div>
+
+  {% if ag.status == 'complete' %}
+  {% if ag.get('assessment') %}
+  <p style="font-size:12px;color:#666;margin-bottom:10px">{{ ag.assessment }}</p>
+  {% endif %}
+
+  {% if ag.get('gaps') %}
+  <div style="margin-bottom:8px">
+    <div class="row"><span class="lbl" style="color:#2a3a2a">gaps identified</span></div>
+    {% for gap in ag.gaps %}
+    <div style="font-size:11px;color:#3a5a3a;padding:2px 0 2px 8px;border-left:1px solid #1a3a1a">{{ gap }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if ag.get('queries') %}
+  <div>
+    <div class="row"><span class="lbl" style="color:#1a2a4a">search queries generated</span></div>
+    <div class="agent-queries">
+      {% for q in ag.queries %}
+      <span class="agent-query-pill">{{ q }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="metrics" style="margin-top:12px">
+    {% if ag.get('duration_s') %}<div class="metric"><div class="metric-label">duration</div><div class="metric-value">{{ ag.duration_s }}s</div></div>{% endif %}
+    {% if ag.get('texts_added') is not none %}<div class="metric"><div class="metric-label">texts added</div><div class="metric-value">{{ ag.get('texts_added',0) }}</div></div>{% endif %}
+    {% if ag.get('model') %}<div class="metric"><div class="metric-label">model</div><div class="metric-value" style="font-size:10px">{{ ag.model }}</div></div>{% endif %}
+  </div>
+  {% elif ag.status == 'error' %}
+  <p style="font-size:11px;color:#6a3030">{{ ag.get('error','unknown error') }}</p>
+  {% elif ag.status == 'no_corpus' %}
+  <p style="font-size:11px;color:#3a3a00">No corpus available yet. Run seed_corpus.py first.</p>
+  {% elif ag.status == 'idle' %}
+  <p style="font-size:11px;color:#2a2a2a">Not yet run. Waiting for next training cycle.</p>
+  {% endif %}
+</div>
+{% endfor %}
+
+<p class="footer">Sangjun Yoo &mdash; Keepsake in Every Hair ~ Migration, 2026</p>
+{{ refresh_js | safe }}
+</body></html>"""
+
+
+@app.route(f"{P}/agents/")
+@app.route(f"{P}/agents", strict_slashes=False)
+def agents_overview():
+    states = _load_agent_states()
+    cfg = _system_agent_config()
+    return _render(_AGENTS_TMPL, lens_names=LENS_NAMES, states=states, cfg=cfg)
 
 
 @app.route(f"{P}/api/custodian")

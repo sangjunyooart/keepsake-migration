@@ -20,3 +20,10 @@ system:
     corpus_max_size_gb: 20
     adapter_keep_history_count: 50
     log_rotation_days: 30
+
+  agent_curation:
+    enabled: true
+    model: "qwen2.5:14b-instruct-q4_K_M"
+    ollama_base_url: "http://localhost:11434"
+    max_results_per_query: 3
+    fallback_to_tfidf: true            # use HistoricalCollector if Ollama unreachable

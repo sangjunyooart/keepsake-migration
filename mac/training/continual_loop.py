@@ -63,9 +63,20 @@ class ContinualLoop:
         collector = FeedCollector(lens_name, self.mac_root / "corpus" / "raw")
         collector.collect()
 
-        # 2. Run historical collection (active learning)
-        historical = HistoricalCollector(lens_name, self.mac_root)
-        historical.run()
+        # 2. Agent-powered curation (or TF-IDF fallback)
+        agent_cfg = self.system_config.get("agent_curation", {})
+        if agent_cfg.get("enabled", False):
+            from mac.agents.coordinator import AgentCoordinator
+            coordinator = AgentCoordinator(
+                self.mac_root, self.system_config, self.lens_configs
+            )
+            if coordinator.is_available():
+                coordinator.run_lens(lens_name)
+            elif agent_cfg.get("fallback_to_tfidf", True):
+                logger.warning("Ollama unavailable — falling back to TF-IDF for %s", lens_name)
+                HistoricalCollector(lens_name, self.mac_root).run()
+        else:
+            HistoricalCollector(lens_name, self.mac_root).run()
 
         # 3. Preprocess
         preprocessor = Preprocessor(
