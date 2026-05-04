@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.keepsake.parallax</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/junyoo182/keepsake-migration/mac/launchd/start-parallax-server.sh</string>
+    <string>/Users/junyoo182/spectral_parallax</string>
+    <string>8765</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/junyoo182/keepsake-migration/mac/logs/parallax.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/junyoo182/keepsake-migration/mac/logs/parallax.error.log</string>
+</dict>
+</plist>
