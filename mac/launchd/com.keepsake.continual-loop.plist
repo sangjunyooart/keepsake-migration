@@ -8,20 +8,20 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/sangjunyooart/keepsake-migration/mac/venv/bin/python</string>
+    <string>/Users/junyoo182/keepsake-migration/mac/venv/bin/python</string>
     <string>-m</string>
     <string>mac.training.continual_loop</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/sangjunyooart/keepsake-migration</string>
+  <string>/Users/junyoo182/keepsake-migration</string>
 
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>/Users/sangjunyooart/keepsake-migration/mac/venv/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <string>/Users/junyoo182/keepsake-migration/mac/venv/bin:/usr/local/bin:/usr/bin:/bin</string>
     <key>PYTHONPATH</key>
-    <string>/Users/sangjunyooart/keepsake-migration</string>
+    <string>/Users/junyoo182/keepsake-migration</string>
   </dict>
 
   <key>RunAtLoad</key>
@@ -37,9 +37,9 @@
   <integer>30</integer>
 
   <key>StandardOutPath</key>
-  <string>/Users/sangjunyooart/keepsake-migration/mac/logs/continual_loop.log</string>
+  <string>/Users/junyoo182/keepsake-migration/mac/logs/continual_loop.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/sangjunyooart/keepsake-migration/mac/logs/continual_loop.error.log</string>
+  <string>/Users/junyoo182/keepsake-migration/mac/logs/continual_loop.error.log</string>
 </dict>
 </plist>
