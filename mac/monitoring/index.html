@@ -253,19 +253,24 @@ async function discover(svc) {
   }
 
   ctrl.innerHTML = hits.map(([path, methods]) => {
-    const lbl      = path.replace(/^\//,'').replace(/[/_]/g,' ');
-    const isToggle = /toggle|tick|auto/i.test(path);
-    const hasPost  = 'post' in methods;
-    const hasGet   = 'get'  in methods;
-    const sid      = `${svc.id}${path.replace(/\W/g,'')}`;
+    const lbl        = path.replace(/^\//,'').replace(/[/_]/g,' ');
+    const hasPost    = 'post' in methods;
+    const hasGet     = 'get'  in methods;
+    const sid        = `${svc.id}${path.replace(/\W/g,'')}`;
+    const postParams = (methods['post']?.parameters || []).map(p => p.name);
+
     let h = `<div class="cr"><div class="cl" title="${path}">${lbl}</div>`;
-    if (hasPost && isToggle) {
-      h += `<div class="pill">
-        <button class="pb" onclick="callApi(${svc.port},'${path}',{action:'on'})">ON</button>
-        <button class="pb" onclick="callApi(${svc.port},'${path}',{action:'off'})">OFF</button>
-      </div>`;
-    } else if (hasPost) {
-      h += `<button class="ab" onclick="callApi(${svc.port},'${path}',{})">run</button>`;
+    if (hasPost) {
+      if (postParams.includes('enabled')) {
+        // Boolean query-param toggle (e.g. /admin/auto_drift?enabled=true)
+        h += `<div class="pill">
+          <button class="pb" onclick="callApi(${svc.port},'${path}?enabled=true')">ON</button>
+          <button class="pb" onclick="callApi(${svc.port},'${path}?enabled=false')">OFF</button>
+        </div>`;
+      } else {
+        // Plain trigger — no body, no query params
+        h += `<button class="ab" onclick="callApi(${svc.port},'${path}')">trigger</button>`;
+      }
     }
     if (hasGet) {
       h += `<button class="ab" onclick="getApi(${svc.port},'${path}','gv${sid}')">get</button>
@@ -275,11 +280,9 @@ async function discover(svc) {
   }).join('');
 }
 
-async function callApi(port, path, body) {
+async function callApi(port, path) {
   try {
-    await fetch(`http://localhost:${port}${path}`, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
-    });
+    await fetch(`http://localhost:${port}${path}`, { method:'POST' });
   } catch {}
 }
 async function getApi(port, path, spanId) {
