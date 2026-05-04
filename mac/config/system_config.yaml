@@ -17,8 +17,8 @@ system:
     pi_ssh_key_path: "~/.ssh/keepsake_pi3"   # shared key for all Pis — copy to each Pi
 
   storage:
-    corpus_max_size_gb: 20
-    adapter_keep_history_count: 50
+    corpus_max_size_gb: 8
+    adapter_keep_history_count: 5
     log_rotation_days: 30
 
   agent_curation:
