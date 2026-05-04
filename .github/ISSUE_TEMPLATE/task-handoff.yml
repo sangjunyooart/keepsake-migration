@@ -1,0 +1,41 @@
+name: Task handoff
+description: Record work that another contributor will need to continue.
+title: "[handoff] "
+labels:
+  - handoff
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What changed so far?
+    validations:
+      required: true
+  - type: textarea
+    id: touched-files
+    attributes:
+      label: Files touched
+      description: List the main files or areas changed.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: What was checked, tested, or manually verified?
+    validations:
+      required: true
+  - type: textarea
+    id: open-items
+    attributes:
+      label: Open items
+      description: What remains or where is the risk?
+    validations:
+      required: true
+  - type: textarea
+    id: next-step
+    attributes:
+      label: Next step
+      description: What should the next contributor do first?
+    validations:
+      required: true

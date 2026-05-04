@@ -28,6 +28,7 @@ artwork/adapters/
 artwork/logs/
 artwork/runtime_state/token_budget_*.json
 helper/logs/
+backups/
 
 # Custodian runtime state (generated)
 helper/custodian/state/

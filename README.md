@@ -23,3 +23,21 @@ Flask status endpoints, a central dashboard, and drift measurement utilities use
 ---
 
 The artwork can run without the helper. The helper only observes — it never modifies the artwork's behavior.
+
+---
+
+## Contributor coordination
+
+```bash
+# Repo and handoff status
+bash scripts/repo_status.sh
+
+# Safe fetch/divergence check and fast-forward sync
+bash scripts/sync_with_github.sh
+
+# Timestamped git-state backup
+bash scripts/backup_repo_state.sh
+```
+
+Contributor workflow is documented in `CONTRIBUTING.md`.
+Handoff notes live in `docs/handoffs/`.
