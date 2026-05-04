@@ -87,6 +87,9 @@ html,body{height:100vh;display:flex;flex-direction:column;overflow:hidden;
 .ab{padding:2px 8px;font-size:9px;font-family:inherit;cursor:pointer;
     border:1px solid #222;border-radius:4px;background:#181818;color:#444;transition:all .1s}
 .ab:hover{background:#222;color:#aaa;border-color:#333}
+.museum-links{display:flex;gap:5px;flex-wrap:wrap;padding:6px 0 2px;border-top:1px solid #181818;margin-top:4px}
+.museum-link{font-size:8px;color:#2a4a3a;border:1px solid #1a3a2a;border-radius:3px;padding:2px 7px;text-decoration:none;transition:all .1s}
+.museum-link:hover{color:#3fb950;border-color:#2a5a3a;background:#0a1a0a}
 .cv{font-size:9px;color:#333;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* shared iframe — kept for /monitor only */
@@ -114,10 +117,10 @@ html,body{height:100vh;display:flex;flex-direction:column;overflow:hidden;
 
 <script>
 const SVCS = [
-  {id:'ar',  name:'drift · AR',  port:8000, path:'/admin', main:'/'},
-  {id:'en',  name:'drift · EN',  port:8001, path:'/admin', main:'/'},
-  {id:'gr',  name:'drift · GR',  port:8002, path:'/admin', main:'/'},
-  {id:'br',  name:'drift · BR',  port:8003, path:'/admin', main:'/'},
+  {id:'ar',  name:'drift · AR',  port:8000, path:'/admin', main:'/', museums:['https://ar.keepsake-drift.net/museum1','https://ar.keepsake-drift.net/museum2','https://ar.keepsake-drift.net/museum3']},
+  {id:'en',  name:'drift · EN',  port:8001, path:'/admin', main:'/', museums:['https://en.keepsake-drift.net/museum1','https://en.keepsake-drift.net/museum2','https://en.keepsake-drift.net/museum3']},
+  {id:'gr',  name:'drift · GR',  port:8002, path:'/admin', main:'/', museums:['https://gr.keepsake-drift.net/museum1','https://gr.keepsake-drift.net/museum2','https://gr.keepsake-drift.net/museum3']},
+  {id:'br',  name:'drift · BR',  port:8003, path:'/admin', main:'/', museums:['https://br.keepsake-drift.net/museum1','https://br.keepsake-drift.net/museum2','https://br.keepsake-drift.net/museum3']},
   {id:'px',  name:'parallax',    port:8765, path:'/admin', main:'/'},
 ];
 const TOGGLE_RE = /toggle|auto|tick|drift|start|stop|enable|disable|run|pause/i;
@@ -154,11 +157,15 @@ SVCS.forEach(svc => {
   const card = document.createElement('div');
   card.className = 'card';
   card.dataset.main = svc.id;
+  const museumsHtml = (svc.museums || []).map((url, i) =>
+    `<a class="museum-link" href="${url}" target="_blank" onclick="event.stopPropagation()">museum${i+1}</a>`
+  ).join('');
   card.innerHTML = `
     <div class="top">
       <div><div class="c-name">${svc.name}</div><div class="c-url">:${svc.port}/</div></div>
       <div class="c-code wait" id="cc-${svc.id}">—</div>
     </div>
+    ${museumsHtml ? `<div class="museum-links">${museumsHtml}</div>` : ''}
     <div class="card-ctrls" id="ctrl-${svc.id}">
       <div class="cr"><div class="cv" style="color:#1e1e1e;font-size:9px">discovering api…</div></div>
     </div>`;
