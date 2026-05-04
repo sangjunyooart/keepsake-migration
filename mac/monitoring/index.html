@@ -262,10 +262,10 @@ async function discover(svc) {
     let h = `<div class="cr"><div class="cl" title="${path}">${lbl}</div>`;
     if (hasPost) {
       if (postParams.includes('enabled')) {
-        // Boolean query-param toggle (e.g. /admin/auto_drift?enabled=true)
+        // Boolean query-param toggle (e.g. /admin/auto_drift?enabled=1)
         h += `<div class="pill">
-          <button class="pb" onclick="callApi(${svc.port},'${path}?enabled=true')">ON</button>
-          <button class="pb" onclick="callApi(${svc.port},'${path}?enabled=false')">OFF</button>
+          <button class="pb" onclick="callApi(${svc.port},'${path}?enabled=1')">ON</button>
+          <button class="pb" onclick="callApi(${svc.port},'${path}?enabled=0')">OFF</button>
         </div>`;
       } else {
         // Plain trigger — no body, no query params
